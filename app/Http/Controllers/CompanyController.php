@@ -17,6 +17,8 @@ class CompanyController extends Controller
 {
     public function index(Request $request, AccessService $access): View
     {
+        $request->session()->forget('active_company_id');
+
         return view('companies.index', ['companies' => $access->companies($request->user())->with('branches')->orderBy('name')->get()]);
     }
 

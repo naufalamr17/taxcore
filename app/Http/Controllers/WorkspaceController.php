@@ -18,7 +18,7 @@ class WorkspaceController extends Controller
 
     public function dashboard(Request $request): RedirectResponse
     {
-        $company = $this->access->companies($request->user())->find($request->session()->get('active_company_id')) ?? $this->access->companies($request->user())->orderBy('id')->first();
+        $company = $this->access->companies($request->user())->find($request->session()->get('active_company_id'));
 
         return $company ? redirect()->route('payroll.index', $company) : redirect()->route('companies.index');
     }

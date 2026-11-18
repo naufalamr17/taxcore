@@ -1,56 +1,5 @@
-const root = document.documentElement;
-try { if (localStorage.getItem('taxcore-theme') === 'dark') root.dataset.theme = 'dark'; } catch {}
-document.querySelector('[data-theme-toggle]')?.addEventListener('click', () => {
-    root.dataset.theme = root.dataset.theme === 'dark' ? 'light' : 'dark';
-    try { localStorage.setItem('taxcore-theme', root.dataset.theme); } catch {}
-});
-document.querySelector('[data-sidebar-toggle]')?.addEventListener('click', event => {
-    const open = document.getElementById('sidebar').classList.toggle('open');
-    event.currentTarget.setAttribute('aria-expanded', String(open));
-});
-document.querySelector('[data-company-switch]')?.addEventListener('change', event => { window.location.assign(event.target.value); });
-document.querySelectorAll('[data-password-toggle]').forEach(button => button.addEventListener('click', () => {
-    const field = document.getElementById(button.dataset.passwordToggle);
-    const visible = field.type === 'password';
-    field.type = visible ? 'text' : 'password';
-    button.textContent = visible ? 'Sembunyikan' : 'Lihat';
-    button.setAttribute('aria-pressed', String(visible));
-}));
-document.querySelectorAll('[data-confirm]').forEach(form => form.addEventListener('submit', event => {
-    if (!window.confirm(form.dataset.confirm)) event.preventDefault();
-}));
-document.querySelectorAll('[data-print]').forEach(button => button.addEventListener('click', () => {
-    document.body.dataset.printTarget = document.querySelector('[data-print-target]')?.value ?? 'both';
-    window.print();
-}));
-window.addEventListener('afterprint', () => { delete document.body.dataset.printTarget; });
-document.querySelectorAll('[data-output-target]').forEach(button => button.addEventListener('click', () => {
-    const target = button.dataset.outputTarget;
-    document.querySelector('.result-output').dataset.outputMode = target;
-    document.querySelectorAll('[data-output-panel]').forEach(panel => { panel.hidden = target !== 'both' && panel.dataset.outputPanel !== target; });
-    document.querySelectorAll('[data-output-target]').forEach(tab => tab.setAttribute('aria-pressed', String(tab === button)));
-    document.querySelector('[data-print-target]').value = target;
-}));
-document.querySelectorAll('[data-dialog-open]').forEach(button => button.addEventListener('click', () => document.getElementById(button.dataset.dialogOpen)?.showModal()));
-document.querySelectorAll('[data-dialog-close]').forEach(button => button.addEventListener('click', () => button.closest('dialog').close()));
-try { root.dataset.navCollapsed = localStorage.getItem('taxcore-nav-collapsed') === 'true' ? 'true' : 'false'; } catch {}
-document.querySelector('[data-sidebar-collapse]')?.addEventListener('click', event => {
-    const collapsed = root.dataset.navCollapsed !== 'true';
-    root.dataset.navCollapsed = String(collapsed);
-    event.currentTarget.setAttribute('aria-expanded', String(!collapsed));
-    try { localStorage.setItem('taxcore-nav-collapsed', String(collapsed)); } catch {}
-});
-document.querySelectorAll('.nav-link').forEach(link => { link.title = link.textContent.trim(); });
-document.querySelector('[data-sidebar-backdrop]')?.addEventListener('click', () => {
-    document.getElementById('sidebar').classList.remove('open');
-    document.querySelector('[data-sidebar-toggle]').setAttribute('aria-expanded', 'false');
-});
-document.addEventListener('keydown', event => {
-    if (event.key === 'Escape') {
-        document.getElementById('sidebar')?.classList.remove('open');
-        document.querySelector('[data-sidebar-toggle]')?.setAttribute('aria-expanded', 'false');
-    }
-});
+import './shadcn.jsx';
+
 document.querySelector('[data-spreadsheet-toggle]')?.addEventListener('click', event => {
     const active = document.getElementById('payroll-table').classList.toggle('spreadsheet');
     event.currentTarget.setAttribute('aria-pressed', String(active));

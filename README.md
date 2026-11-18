@@ -2,7 +2,7 @@
 
 TaxCore is a Laravel application for Indonesian payroll and PPh Pasal 21 calculations. It provides company workspaces, recipient records, payroll review and finalization, tax simulations, imports, worksheets, accounting journals, and Coretax exports.
 
-The application uses a service layer for business operations. Its interface uses Blade, Tailwind CSS, Vite, and JavaScript.
+The application uses a service layer for business operations. Its interface combines Blade pages with React 19 and shadcn/ui components, styled with Tailwind CSS 4 and bundled by Vite.
 
 ## Features
 
@@ -17,6 +17,22 @@ The application uses a service layer for business operations. Its interface uses
 - Subject-specific XLSX templates, CSV, and pasted-data imports with previews, row validation, file/selected-period choices, and transactional append/replace modes. Replacement protects finalized periods and rejects stale previews.
 - Payroll snapshots, tracked corrections, printable worksheets, and balanced accounting journals.
 - XLSX and XML exports using BPMP, BP21, or BPA1 structures according to the tax module.
+
+## UI and navigation
+
+The interface uses the official shadcn/ui New York components with neutral black-and-white styling, a light sidebar, rounded cards, system typography, light/dark modes, and Lucide icons. React powers the responsive sidebar, company and account menus, authentication forms, confirmation dialogs, TER tables, and worksheet/journal controls. Blade keeps the existing form submissions and payroll tables, using the same theme tokens. Calculations and authorization remain in Laravel services.
+
+Workspace navigation resolves the active company from the companies the signed-in user can access. It remains available on company, access-management, and tax-reference pages. Without a selected company, or when its access has been revoked, company-specific menus stay visible but disabled until a company is explicitly selected. The desktop sidebar can collapse to icons; its restore button remains in the header. Mobile navigation uses a dismissible Sheet. Opening company management clears the active selection and shows its own label in the company menu. Choosing a company or opening its workspace enables payroll navigation again. Login uses the original two-column layout on desktop.
+
+- UI components: `resources/js/components/ui/` (official shadcn registry sources converted to JavaScript).
+- Application components: `resources/js/components/{workspace,tax-widgets,auth-form}.jsx`.
+- Mount points: `resources/js/shadcn.jsx`; server-rendered navigation and auth forms remain as fallbacks.
+- Theme tokens and Blade styles: `resources/css/app.css`.
+- Component aliases and generation settings: `components.json`, `jsconfig.json`, and `vite.config.js`.
+
+The component registry is [shadcn/ui New York](https://ui.shadcn.com/docs/components). The installed component sources are part of this repository. The current shadcn CLI hit an npm 11 compatibility error; components were imported from its official registry without enabling dependency install scripts. [React supports this incremental integration with existing pages](https://react.dev/learn/add-react-to-an-existing-project).
+
+After changing UI dependencies or Vite configuration, restart `npm run dev`. The dev server binds to `127.0.0.1` to keep React Refresh URLs valid on Windows. A production build uses `npm run build`.
 
 ## Requirements
 
@@ -206,10 +222,11 @@ database/
 resources/
   views/                  Blade pages and components
   css/                    Application styles
-  js/                     Interface behavior
+  js/                     React/shadcn components and interface behavior
 routes/web.php            Application routes
 tests/
-  Feature/                Calculation, workflow, security, import, and export checks
+  Feature/                Calculation, workflow, security, navigation, import, and export checks
+  Frontend/               React rendering and UI contract checks
   Fixtures/coretax/        DJP sample XML and TER reference data
 ```
 
@@ -219,6 +236,7 @@ The test suite uses an in-memory SQLite database through [phpunit.xml](phpunit.x
 
 ```powershell
 php vendor/bin/pest --compact
+npm run test:ui
 npm run build
 php artisan view:cache --no-interaction
 ```
@@ -229,7 +247,7 @@ For a Laragon PHP installation where SQLite extensions are available but disable
 php -d extension=pdo_sqlite -d extension=sqlite3 vendor/bin/pest --compact
 ```
 
-Coverage includes TER thresholds, gross-up, refunds, final-period history, payroll snapshots, stale updates, company isolation, roles, import rollback, a 1,000-row import, and XML field structure.
+Coverage includes TER thresholds, gross-up, refunds, final-period history, payroll snapshots, stale updates, company isolation, roles, import rollback, 1,000/2,500-row imports, retained navigation on company-independent pages, and XML field structure. UI checks cover collapsed-sidebar recovery, escaped data, CSRF form actions, and the eight-character password boundary.
 
 Format PHP using the installed Pint binary.
 
@@ -255,4 +273,8 @@ php vendor/bin/pint app database routes config/tax.php config/taxcore.php tests/
 - Calculations cover standard resident-taxpayer scenarios without DTP facilities.
 - Each recipient has one consolidated payment per company, module, and period. Separate payments within the same month require extending the payment model.
 - Imports support the first standard XLSX worksheet, CSV, and pasted data. Legacy binary XLS and multi-sheet imports require additional support.
-- Tests verify the implemented calculations and file structures. Browser UAT and successful submission to Coretax remain separate verification tasks.
+- Tests verify the implemented calculations and file structures. Browser UAT and successful submission to Coretax remain separate verification tasks. Computer Use could not verify the browser URL during this UI update, so live sidebar behavior has not been signed off.
+
+### Build-tool advisory
+
+`npm audit --omit=dev` reports zero runtime vulnerabilities. The full `npm audit` currently reports seven high-severity dependency paths through picomatch in the Vite development/build toolchain. The upstream advisory lists no patched version. This update keeps the existing Vite major rather than applying the suggested incompatible downgrades. Avoid processing untrusted glob patterns in development tooling. [GHSA-fc5q-39xc-vjpf](https://github.com/advisories/GHSA-fc5q-39xc-vjpf)
