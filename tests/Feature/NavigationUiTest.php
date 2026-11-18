@@ -7,6 +7,22 @@ use Illuminate\Foundation\Testing\LazilyRefreshDatabase;
 
 uses(LazilyRefreshDatabase::class);
 
+test('authentication pages stay dark and workspace stays light without saved theme preferences', function (): void {
+    $this->get(route('setup'))->assertOk()
+        ->assertSee('<html lang="id" class="dark" data-theme="dark">', false)
+        ->assertDontSee('taxcore-theme');
+
+    $admin = User::factory()->create(['role' => 'SUPER_ADMIN']);
+
+    $this->get(route('login'))->assertOk()
+        ->assertSee('<html lang="id" class="dark" data-theme="dark">', false)
+        ->assertDontSee('taxcore-theme');
+    $this->actingAs($admin)->get(route('companies.index'))->assertOk()
+        ->assertSee('<html lang="id" data-theme="light">', false)
+        ->assertDontSee('<html lang="id" class="dark"', false)
+        ->assertDontSee('taxcore-theme');
+});
+
 test('selected company keeps workspace menus enabled on access and reference pages', function (): void {
     $admin = User::factory()->create(['role' => 'SUPER_ADMIN']);
     $company = Company::factory()->create();

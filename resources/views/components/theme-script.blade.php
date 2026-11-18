@@ -1,1 +1,1 @@
-<script>try{const dark=localStorage.getItem('taxcore-theme')==='dark';document.documentElement.classList.toggle('dark',dark);document.documentElement.dataset.theme=dark?'dark':'light';document.documentElement.dataset.navCollapsed=localStorage.getItem('taxcore-nav-collapsed')==='true'?'true':'false'}catch{}</script>
+<script>try{document.documentElement.dataset.navCollapsed=localStorage.getItem('taxcore-nav-collapsed')==='true'?'true':'false'}catch{}</script>

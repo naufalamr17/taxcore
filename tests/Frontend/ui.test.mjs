@@ -22,7 +22,7 @@ const workspace = {
     title:'Perusahaan', dashboardUrl:'/dashboard', companyId:1,
     companies:[{id:1,name:'Perusahaan Aman',href:'/companies/1/payroll'}], companiesUrl:'/companies',
     navigation:[{label:'Daftar Gaji & PPh 21',href:'/companies/1/payroll',icon:'payroll'}],
-    modules:[{label:'Pegawai Tetap Bulanan',href:'/companies/1/payroll?module=monthly'}],
+    modules:[{label:'Pegawai Tetap Bulanan',module:'monthly',href:'/companies/1/payroll?module=monthly'}],
     system:[{label:'Perusahaan & Cabang',href:'/companies',icon:'company'}],
     user:{name:'Tester',role:'Super Admin'}, logoutUrl:'/logout',csrf:'test-token',
 };
@@ -34,6 +34,7 @@ test('collapsed navigation retains workspace links and an always available resto
     assert.match(html,/href="\/companies\/1\/payroll"/);
     assert.match(html,/aria-label="Daftar Gaji &amp; PPh 21"/);
     assert.match(html,/Pegawai Tetap Bulanan/);
+    assert.ok(!html.includes('>TER</span>'));
     delete globalThis.localStorage;
 });
 test('expanded navigation has desktop collapse and mobile open controls', () => {
@@ -41,6 +42,8 @@ test('expanded navigation has desktop collapse and mobile open controls', () => 
     assert.match(html,/aria-label="Ciutkan sidebar"/);
     assert.match(html,/aria-label="Buka navigasi"/);
     assert.match(html,/Perusahaan Aman/);
+    assert.match(html,/aria-label="Pegawai Tetap Bulanan"/);
+    assert.match(html,/>TER<\/span>/);
 });
 test('company management identifies the current page without an active company', () => {
     const html=renderToStaticMarkup(createElement(Workspace,{...workspace,isManagingCompanies:true,companyId:null,navigation:workspace.navigation.map(item=>({...item,href:null,disabled:true})),modules:workspace.modules.map(item=>({...item,href:null,disabled:true}))}));
@@ -48,6 +51,15 @@ test('company management identifies the current page without an active company',
     assert.ok(!html.includes('Perusahaan Aman'));
     assert.ok(!html.includes('href="/companies/1/payroll"'));
     assert.match(html,/aria-label="Ciutkan sidebar"/);
+});
+
+test('workspace has no theme switch even when a dark preference was saved', () => {
+    globalThis.localStorage = { getItem:key => key==='taxcore-theme' ? 'dark' : null };
+    const html=renderToStaticMarkup(createElement(Workspace,workspace));
+    assert.ok(!html.includes('Gunakan tema'));
+    assert.match(html,/aria-label="Perusahaan aktif"/);
+    assert.match(html,/aria-label="Menu akun"/);
+    delete globalThis.localStorage;
 });
 
 test('menus requiring a company are disabled without removing them in either sidebar state', () => {

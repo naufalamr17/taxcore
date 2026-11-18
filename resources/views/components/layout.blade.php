@@ -8,7 +8,7 @@
         $navigation[] = ['label'=>'Database Penerima','href'=>$navigationCompany ? route('employees.index',$navigationCompany) : null,'icon'=>'people','disabled'=>!$navigationCompany,'active'=>request()->routeIs('employees.*')];
         $navigation[] = ['label'=>'Simulator Pajak','href'=>$navigationCompany ? route('simulator.index',$navigationCompany) : null,'icon'=>'calculator','disabled'=>!$navigationCompany,'active'=>request()->routeIs('simulator.*')];
         foreach (config('taxcore.modules') as $key=>$label) {
-            $modules[] = ['label'=>$label,'disabled'=>!$navigationCompany,'href'=>$navigationCompany ? route('payroll.index',['company'=>$navigationCompany,'module'=>$key,'month'=>$key==='annual' ? 12 : now()->month,'year'=>2026]) : null,'active'=>request()->routeIs('payroll.*') && request('module','monthly')===$key];
+            $modules[] = ['label'=>$label,'module'=>$key,'disabled'=>!$navigationCompany,'href'=>$navigationCompany ? route('payroll.index',['company'=>$navigationCompany,'module'=>$key,'month'=>$key==='annual' ? 12 : now()->month,'year'=>2026]) : null,'active'=>request()->routeIs('payroll.*') && request('module','monthly')===$key];
         }
     }
     $system = [];
@@ -25,7 +25,7 @@
     $workspaceUi = ['title'=>$title,'dashboardUrl'=>route('dashboard'),'companyId'=>$navigationCompany?->id,'companies'=>$switchCompanies->map(fn($item)=>['id'=>$item->id,'name'=>$item->name,'href'=>route('payroll.index',$item)])->values(),'companiesUrl'=>route('companies.index'),'isManagingCompanies'=>request()->routeIs('companies.index'),'navigation'=>$navigation,'modules'=>$modules,'system'=>$system,'user'=>['name'=>auth()->user()->name,'role'=>config('taxcore.roles.'.auth()->user()->role)],'logoutUrl'=>route('logout'),'csrf'=>csrf_token()];
 @endphp
 <!DOCTYPE html>
-<html lang="id">
+<html lang="id" data-theme="light">
 <head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="csrf-token" content="{{ csrf_token() }}"><title>{{ $title }} - TaxCore</title><link rel="icon" type="image/svg+xml" href="{{ asset('favicon.svg') }}">
 @include('components.theme-script')
 @viteReactRefresh
