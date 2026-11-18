@@ -39,9 +39,18 @@ class WorkspaceController extends Controller
                 $employees->where('name', 'like', '%'.$selection['q'].'%')->orWhere('nik', 'like', '%'.$selection['q'].'%')->orWhere('position', 'like', '%'.$selection['q'].'%');
             }));
         });
+        $tableTotals = array_fill_keys(['salary', 'allowance', 'bonus', 'thr', 'overtime', 'bpjs_company', 'gross', 'tax', 'take_home'], 0);
+        foreach ((clone $query)->select(['id', 'input', 'gross', 'tax', 'take_home'])->lazyById(500) as $item) {
+            foreach (['salary', 'allowance', 'bonus', 'thr', 'overtime', 'bpjs_company'] as $field) {
+                $tableTotals[$field] += (int) ($item->input[$field] ?? 0);
+            }
+            foreach (['gross', 'tax', 'take_home'] as $field) {
+                $tableTotals[$field] += $item->{$field};
+            }
+        }
         $entries = $query->with(['employee', 'payrollRun'])->orderBy('id')->paginate((int) $selection['per_page'])->withQueryString();
 
-        return view('payroll.index', compact('company', 'branches', 'selection', 'runs', 'entries', 'totals'));
+        return view('payroll.index', compact('company', 'branches', 'selection', 'runs', 'entries', 'totals', 'tableTotals'));
     }
 
     public function reference(TaxService $tax): View
@@ -52,6 +61,7 @@ class WorkspaceController extends Controller
     public function audit(Request $request, Company $company): View
     {
         $this->access->company($request->user(), $company->id);
+        abort_unless($request->user()->role === 'SUPER_ADMIN', 403);
         $events = AuditEvent::with('user')->where('company_id', $company->id)->latest('id')->paginate(50);
 
         return view('audit', compact('company', 'events'));

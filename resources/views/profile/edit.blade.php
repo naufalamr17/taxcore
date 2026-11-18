@@ -1,0 +1,9 @@
+<x-layout title="Profil & Password">
+<div class="page-heading"><div><span class="pill">AKUN SAYA</span><h2 class="mt-3">Profil & password</h2><p>Perbarui identitas akun dan password Anda.</p></div></div>
+<section class="panel"><div class="panel-heading"><h3>Profil akun</h3><span class="pill">{{ config('taxcore.roles.'.$user->role) }}</span></div><form method="post" action="{{ route('profile.update') }}" class="panel-body space-y-4">@csrf @method('PUT')
+<div class="grid gap-4 sm:grid-cols-2"><label class="form-label">Username<input class="field" value="{{ $user->username }}" readonly aria-readonly="true" autocomplete="username"></label><x-input name="name" label="Nama lengkap" :value="$user->name" required maxlength="150" autocomplete="name" /><x-input name="email" label="Email" type="email" :value="$user->email" required maxlength="150" autocomplete="email" /></div>
+<p class="text-xs leading-5 text-muted-foreground">Username, peran, dan akses perusahaan dikelola oleh administrator.</p><button class="button primary">Simpan profil</button></form></section>
+<section class="panel"><div class="panel-heading"><h3>Ganti password</h3></div><form method="post" action="{{ route('profile.password') }}" class="panel-body space-y-4">@csrf @method('PUT')
+<div class="grid gap-4 sm:grid-cols-2"><x-input name="current_password" label="Password saat ini" type="password" required autocomplete="current-password" /><x-input name="password" label="Password baru (minimal 8 karakter)" type="password" required minlength="8" maxlength="128" autocomplete="new-password" /><x-input name="password_confirmation" label="Ulangi password baru" type="password" required minlength="8" maxlength="128" autocomplete="new-password" /></div>
+<button class="button primary">Perbarui password</button></form></section>
+</x-layout>

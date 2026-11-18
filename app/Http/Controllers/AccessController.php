@@ -20,7 +20,7 @@ class AccessController extends Controller
         Gate::authorize('access.manage');
         $validated = $request->validate(['edit' => ['nullable', 'integer']]);
 
-        return view('access.index', ['users' => User::with('companies')->orderBy('name')->paginate(30), 'allCompanies' => Company::orderBy('name')->get(), 'editing' => isset($validated['edit']) ? User::with('companies')->findOrFail($validated['edit']) : null, 'overrides' => RolePermission::all()->groupBy('role'), 'events' => AuditEvent::with('user')->whereNull('company_id')->latest('id')->limit(30)->get()]);
+        return view('access.index', ['users' => User::with('companies')->orderBy('name')->paginate(30), 'allCompanies' => Company::orderBy('name')->get(), 'editing' => isset($validated['edit']) ? User::with('companies')->findOrFail($validated['edit']) : null, 'overrides' => RolePermission::all()->groupBy('role'), 'events' => $request->user()->role === 'SUPER_ADMIN' ? AuditEvent::with('user')->whereNull('company_id')->latest('id')->limit(30)->get() : collect()]);
     }
 
     public function store(UserRequest $request, UserService $users): RedirectResponse

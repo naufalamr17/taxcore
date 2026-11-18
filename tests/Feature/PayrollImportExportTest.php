@@ -41,6 +41,55 @@ test('CSV parser handles quoted delimiters and embedded newlines', function (): 
     expect($rows[1][0])->toBe('Nama, lengkap');
     expect($rows[2][0])->toBe("Nama\nlanjutan");
 });
+
+test('sparse XLSX columns preserve payroll header positions without allocating empty cells', function (): void {
+    $user = User::factory()->create(['role' => 'SUPER_ADMIN']);
+    $company = Company::factory()->create();
+    $branch = Branch::factory()->for($company)->create();
+    $source = importRows();
+    foreach ($source as &$row) {
+        $row[16383] = $row[8];
+        unset($row[8]);
+    }
+    unset($row);
+    $sheets = app(SpreadsheetService::class);
+    $path = tempnam(sys_get_temp_dir(), 'taxcore-sparse-');
+    try {
+        file_put_contents($path, $sheets->write($source));
+
+        $rows = $sheets->read($path, 'xlsx');
+        $batch = app(PayrollImportService::class)->preview($user, $company, $branch->id, 'monthly', $rows);
+
+        expect($rows[1])->toHaveCount(10);
+        expect($rows[1][16383])->toBe('10000000');
+        expect($batch->errors)->toBe([]);
+        expect($batch->records[0]['salary'])->toBe('10000000');
+    } finally {
+        unlink($path);
+    }
+});
+
+test('XLSX imports reject invalid worksheet coordinates before allocating rows', function (string $rowReference, string $cellReference, string $message): void {
+    $path = tempnam(sys_get_temp_dir(), 'taxcore-coordinate-');
+    $zip = new ZipArchive;
+    $zip->open($path, ZipArchive::OVERWRITE);
+    $zip->addFromString('xl/worksheets/sheet1.xml', '<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><sheetData><row r="'.$rowReference.'"><c r="'.$cellReference.'"><v>1</v></c></row></sheetData></worksheet>');
+    $zip->close();
+    try {
+        expect(fn () => app(SpreadsheetService::class)->read($path, 'xlsx'))->toThrow(ValidationException::class, $message);
+    } finally {
+        unlink($path);
+    }
+})->with([
+    'huge column' => ['1', 'ZZZZZZZZZZZZ1', 'Referensi sel XLSX tidak valid.'],
+    'past final Excel column' => ['1', 'XFE1', 'Referensi sel XLSX tidak valid.'],
+    'zero cell row' => ['1', 'A0', 'Referensi sel XLSX tidak valid.'],
+    'cell outside containing row' => ['1', 'A2', 'Referensi sel XLSX tidak valid.'],
+    'malformed cell' => ['1', 'A1trailing', 'Referensi sel XLSX tidak valid.'],
+    'zero worksheet row' => ['0', 'A1', 'Referensi baris XLSX tidak valid.'],
+    'past final Excel row' => ['1048577', 'A1048577', 'Referensi baris XLSX tidak valid.'],
+    'oversized worksheet row' => ['999999999999999999999', 'A1', 'Referensi baris XLSX tidak valid.'],
+]);
 test('malformed and entity bearing XLSX files are rejected', function (): void {
     $path = tempnam(sys_get_temp_dir(), 'taxcore-test-');
     $zip = new ZipArchive;
@@ -149,5 +198,5 @@ test('exports use finalized identity snapshots and the official monthly XML stru
     } finally {
         unlink($path);
     }
-    expect(fn () => $exports->xml($user,$company,array_merge($selection,['month' => 10])))->toThrow(ValidationException::class);
+    expect(fn () => $exports->xml($user, $company, array_merge($selection, ['month' => 10])))->toThrow(ValidationException::class);
 });

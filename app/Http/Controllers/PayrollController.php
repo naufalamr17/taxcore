@@ -68,7 +68,7 @@ class PayrollController extends Controller
     {
         $payroll->remove($request->user(), $company, $entry);
 
-        return redirect()->route('payroll.index', array_merge(['company' => $company], collect($entry->input)->only(['year', 'month', 'branch_id', 'module'])->all()))->with('status', 'Baris draft dihapus dan dicatat dalam audit.');
+        return redirect()->route($request->input('return_to') === 'simulator' ? 'simulator.index' : 'payroll.index', array_merge(['company' => $company], collect($entry->input)->only(['year', 'month', 'branch_id', 'module'])->all()))->with('status', 'Baris draft dihapus dan dicatat dalam audit.');
     }
 
     public function transition(Request $request, Company $company, PayrollRun $run, PayrollService $payroll): RedirectResponse

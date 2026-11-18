@@ -63,10 +63,20 @@ class SimulatorController extends Controller
         $branchId = (int) ($data['branch_id'] ?? $filters['branch_id'] ?? $branches->first()?->id);
         $company->branches()->findOrFail($branchId);
         $data['branch_id'] = $branchId;
-        $entries = PayrollEntry::with(['employee', 'payrollRun'])->whereHas('payrollRun', fn ($query) => $query->where('company_id', $company->id)->where('branch_id', $branchId)->where('year', $data['year'])->when(empty($filters['all_months']), fn ($query) => $query->where('month', $data['month']))->when(empty($filters['all_modules']), fn ($query) => $query->where('module', $data['module'])))
-            ->when($filters['q'] ?? null, fn ($query, $search) => $query->whereHas('employee', fn ($query) => $query->where(fn ($query) => $query->where('name', 'like', '%'.$search.'%')->orWhere('nik', 'like', '%'.$search.'%')->orWhere('position', 'like', '%'.$search.'%'))))
-            ->orderBy('id')->paginate((int) ($filters['per_page'] ?? 25))->withQueryString();
+        $query = PayrollEntry::whereHas('payrollRun', fn ($query) => $query->where('company_id', $company->id)->where('branch_id', $branchId)->where('year', $data['year'])->when(empty($filters['all_months']), fn ($query) => $query->where('month', $data['month']))->when(empty($filters['all_modules']), fn ($query) => $query->where('module', $data['module'])))
+            ->when($filters['q'] ?? null, fn ($query, $search) => $query->whereHas('employee', fn ($query) => $query->where(fn ($query) => $query->where('name', 'like', '%'.$search.'%')->orWhere('nik', 'like', '%'.$search.'%')->orWhere('position', 'like', '%'.$search.'%'))));
+        $totals = array_fill_keys(['count', 'salary', 'allowance', 'bonus', 'thr', 'overtime', 'bpjs_company', 'gross', 'tax', 'take_home'], 0);
+        foreach ((clone $query)->select(['id', 'input', 'gross', 'tax', 'take_home'])->lazyById(500) as $saved) {
+            $totals['count']++;
+            foreach (['salary', 'allowance', 'bonus', 'thr', 'overtime', 'bpjs_company'] as $field) {
+                $totals[$field] += (int) ($saved->input[$field] ?? 0);
+            }
+            foreach (['gross', 'tax', 'take_home'] as $field) {
+                $totals[$field] += $saved->{$field};
+            }
+        }
+        $entries = $query->with(['employee', 'payrollRun'])->orderBy('id')->paginate((int) ($filters['per_page'] ?? 50))->withQueryString();
 
-        return view('tax.simulator', ['company' => $company, 'data' => $data, 'entry' => $entry, 'result' => $result, 'journal' => $result ? $this->journal->entries($result) : [], 'branches' => $branches, 'entries' => $entries, 'filters' => $filters]);
+        return view('tax.simulator', ['company' => $company, 'data' => $data, 'entry' => $entry, 'result' => $result, 'journal' => $result ? $this->journal->entries($result) : [], 'branches' => $branches, 'entries' => $entries, 'filters' => $filters, 'totals' => $totals]);
     }
 }

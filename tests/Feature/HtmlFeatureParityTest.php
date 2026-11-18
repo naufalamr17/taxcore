@@ -7,6 +7,7 @@ use App\Models\Company;
 use App\Models\Employee;
 use App\Models\ImportBatch;
 use App\Models\PayrollEntry;
+use App\Models\PayrollRun;
 use App\Models\User;
 use App\Services\CoretaxExportService;
 use App\Services\JournalService;
@@ -85,8 +86,42 @@ test('simulator saved list searches across modules and all months only within se
     $payroll = app(PayrollService::class);
     $payroll->saveEntry($admin, $company, parityInput($branch, $employee));
     $payroll->saveEntry($admin, $company, parityInput($branch, $employee, ['module' => 'contractor', 'month' => 10, 'tax_object_code' => '21-100-07', 'withholding_date' => '2026-10-31']));
-    $this->actingAs($admin)->get(route('simulator.index', ['company' => $company, 'branch_id' => $branch->id, 'year' => 2026, 'month' => 11, 'all_modules' => 1, 'all_months' => 1, 'q' => 'Dicari']))->assertOk()->assertViewHas('entries', fn ($entries) => $entries->total() === 2);
-    $this->get(route('simulator.index', ['company' => $company, 'year' => 2026, 'month' => 11, 'q' => 'Tidak ada']))->assertOk()->assertViewHas('entries', fn ($entries) => $entries->total() === 0);
+    $this->actingAs($admin)->get(route('simulator.index', ['company' => $company, 'branch_id' => $branch->id, 'year' => 2026, 'month' => 11, 'all_modules' => 1, 'all_months' => 1, 'q' => 'Dicari']))->assertOk()->assertViewHas('entries', fn ($entries) => $entries->total() === 2)
+        ->assertViewHas('totals', fn ($totals) => $totals['count'] === 2 && $totals['gross'] === 20000000);
+    $this->get(route('simulator.index', ['company' => $company, 'year' => 2026, 'month' => 11, 'q' => 'Tidak ada']))->assertOk()->assertViewHas('entries', fn ($entries) => $entries->total() === 0)
+        ->assertViewHas('totals', fn ($totals) => $totals['count'] === 0 && $totals['gross'] === 0);
+});
+
+test('simulator lists saved payroll first and totals every filtered page within the selected branch', function (): void {
+    $admin = User::factory()->create(['role' => 'SUPER_ADMIN']);
+    $company = Company::factory()->create();
+    $branch = Branch::factory()->for($company)->create();
+    $run = PayrollRun::factory()->for($branch)->create(['company_id' => $company->id]);
+    PayrollEntry::factory()->for($run)->count(26)->create();
+    $otherBranch = Branch::factory()->for($company)->create();
+    $otherRun = PayrollRun::factory()->for($otherBranch)->create(['company_id' => $company->id]);
+    PayrollEntry::factory()->for($otherRun)->create();
+    PayrollEntry::factory()->create();
+
+    $this->actingAs($admin)->get(route('simulator.index', ['company' => $company, 'branch_id' => $branch->id, 'year' => 2026, 'month' => 11, 'per_page' => 25, 'page' => 2]))
+        ->assertOk()->assertViewHas('entries', fn ($entries) => $entries->total() === 26 && $entries->count() === 1)
+        ->assertViewHas('totals', fn ($totals) => $totals['count'] === 26 && $totals['salary'] === 260000000 && $totals['gross'] === 260000000 && $totals['tax'] === 5200000 && $totals['take_home'] === 254800000)
+        ->assertSeeInOrder(['Total Subjek Modul Ini', 'Daftar Data Tersimpan', 'Tarif / DPP', 'TOTAL KOLEKTIF (26 PENERIMA)', 'id="simulator-calculation"'], false)
+        ->assertSee('data-workspace-dialog', false)->assertSee('data-spreadsheet-toggle', false);
+});
+
+test('simulator keeps saved payroll read only for auditors', function (): void {
+    $company = Company::factory()->create();
+    $branch = Branch::factory()->for($company)->create();
+    $run = PayrollRun::factory()->for($branch)->create(['company_id' => $company->id]);
+    PayrollEntry::factory()->for($run)->create();
+    $auditor = User::factory()->create(['role' => 'AUDITOR']);
+    $auditor->companies()->attach($company);
+
+    $this->actingAs($auditor)->get(route('simulator.index', ['company' => $company, 'branch_id' => $branch->id, 'year' => 2026, 'month' => 11]))
+        ->assertOk()->assertSee('Kertas kerja')
+        ->assertDontSee('data-editable', false)->assertDontSee('data-spreadsheet-toggle', false)
+        ->assertDontSee('name="employee_name"', false)->assertDontSee('Generator Pegawai &amp; Aksi Massal', false);
 });
 
 test('new payroll recipient is created together with the first payroll entry', function (): void {
@@ -97,6 +132,8 @@ test('new payroll recipient is created together with the first payroll entry', f
     $this->actingAs($admin)->post(route('payroll.store', $company), $data)->assertRedirect();
     expect(Employee::where('company_id', $company->id)->count())->toBe(1);
     expect(PayrollEntry::firstOrFail()->input['name'])->toBe('Baru');
+    $this->get(route('simulator.index', ['company' => $company, 'entry' => PayrollEntry::firstOrFail()->id]))->assertOk()
+        ->assertDontSee('name="new_employee" value="1"', false);
     $data['nik'] = '0000000000000013';
     $data['month'] = 12;
     $this->post(route('payroll.store', $company), $data)->assertSessionHasErrors('withholding_date');

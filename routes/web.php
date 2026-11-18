@@ -7,6 +7,7 @@ use App\Http\Controllers\EmployeeController;
 use App\Http\Controllers\ExportController;
 use App\Http\Controllers\ImportController;
 use App\Http\Controllers\PayrollController;
+use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\SimulatorController;
 use App\Http\Controllers\WorkspaceController;
 use App\Http\Middleware\EnsureActiveUser;
@@ -22,6 +23,9 @@ Route::middleware('guest')->group(function (): void {
 Route::middleware(['auth', EnsureActiveUser::class])->group(function (): void {
     Route::get('/dashboard', [WorkspaceController::class, 'dashboard'])->name('dashboard');
     Route::post('/logout', [AuthController::class, 'logout'])->name('logout');
+    Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
+    Route::put('/profile', [ProfileController::class, 'update'])->name('profile.update');
+    Route::put('/profile/password', [ProfileController::class, 'password'])->middleware('throttle:6,1')->name('profile.password');
     Route::get('/companies', [CompanyController::class, 'index'])->name('companies.index');
     Route::post('/companies', [CompanyController::class, 'store'])->name('companies.store');
     Route::delete('/companies/{company}', [CompanyController::class, 'destroy'])->name('companies.destroy');

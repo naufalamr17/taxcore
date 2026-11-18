@@ -5,9 +5,11 @@ use App\Models\Company;
 use App\Models\Employee;
 use App\Models\PayrollEntry;
 use App\Models\User;
+use App\Services\UserService;
 use Illuminate\Foundation\Testing\LazilyRefreshDatabase;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Validation\ValidationException;
 
 uses(LazilyRefreshDatabase::class);
 test('guests cannot read payroll or access management', function (): void {
@@ -89,6 +91,22 @@ test('role permission changes apply and the final admin stays active', function 
     $this->put(route('access.update', $admin), ['name' => $admin->name, 'username' => $admin->username, 'email' => $admin->email, 'role' => 'AUDITOR', 'is_active' => 0])->assertSessionHasErrors('role');
     expect($admin->fresh()->role)->toBe('SUPER_ADMIN');
     expect($admin->fresh()->is_active)->toBeTrue();
+});
+
+test('stale account models cannot demote the final active administrator', function (): void {
+    $originalAdmin = User::factory()->create(['role' => 'SUPER_ADMIN']);
+    $target = User::factory()->create(['role' => 'PAYROLL_STAFF']);
+    $staleTarget = $target->fresh();
+    $target->update(['role' => 'SUPER_ADMIN']);
+    $originalAdmin->update(['role' => 'AUDITOR']);
+    $actor = $target->fresh();
+    $data = $target->only(['name', 'username', 'email']) + ['role' => 'AUDITOR', 'is_active' => true];
+
+    expect(fn () => app(UserService::class)->save($actor, $data, $staleTarget))
+        ->toThrow(ValidationException::class, 'Super Admin aktif terakhir tidak dapat dinonaktifkan atau diturunkan.');
+
+    expect($target->fresh()->role)->toBe('SUPER_ADMIN');
+    expect(User::where('role', 'SUPER_ADMIN')->where('is_active', true)->count())->toBe(1);
 });
 test('forged company ownership and calculated totals are not mass assigned', function (): void {
     $admin = User::factory()->create(['role' => 'SUPER_ADMIN']);

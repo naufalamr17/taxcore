@@ -32,6 +32,9 @@ class UserService
 
         return DB::transaction(function () use ($actor, $data, $user): User {
             $admins = User::where('role', 'SUPER_ADMIN')->where('is_active', true)->lockForUpdate()->get();
+            if ($user) {
+                $user = User::whereKey($user->id)->lockForUpdate()->firstOrFail();
+            }
             if ($user?->role === 'SUPER_ADMIN' && $user->is_active && ($data['role'] !== 'SUPER_ADMIN' || ! $data['is_active']) && $admins->count() <= 1) {
                 throw ValidationException::withMessages(['role' => 'Super Admin aktif terakhir tidak dapat dinonaktifkan atau diturunkan.']);
             }

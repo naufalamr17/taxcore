@@ -1,9 +1,10 @@
 import { createRoot } from 'react-dom/client';
 import { Workspace } from '@/components/workspace';
 import { AuthForm } from '@/components/auth-form';
+import { WorkspaceDialog } from '@/components/workspace-dialog';
 import { ConfirmationDialog, ResultControls, TerDialog } from '@/components/tax-widgets';
 
-const components = { workspace:Workspace, auth:AuthForm, confirmation:ConfirmationDialog, results:ResultControls, ter:TerDialog };
+const components = { workspace:Workspace, auth:AuthForm, 'workspace-dialog':WorkspaceDialog, confirmation:ConfirmationDialog, results:ResultControls, ter:TerDialog };
 for (const element of document.querySelectorAll('[data-shadcn]')) {
     const Component = components[element.dataset.shadcn];
     if (!Component) continue;

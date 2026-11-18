@@ -1,5 +1,35 @@
 import './shadcn.jsx';
 
+if (document.body.hasAttribute('data-workspace-frame')) {
+    document.querySelectorAll('form').forEach(form => {
+        const mode = document.createElement('input');
+        mode.type = 'hidden';
+        mode.name = '_dialog';
+        mode.value = '1';
+        form.append(mode);
+    });
+    document.addEventListener('click', event => {
+        const link = event.target.closest('a');
+        if (!link || event.ctrlKey || event.metaKey || event.shiftKey || event.altKey) return;
+        if (link.hasAttribute('data-frame-close')) {
+            event.preventDefault();
+            window.parent.postMessage({ type:'taxcore:dialog-close' }, window.location.origin);
+        } else {
+            const url = new URL(link.href, window.location.href);
+            if (url.origin === window.location.origin && !/\/exports\/|\/imports\/template$/.test(url.pathname)) {
+                url.searchParams.set('_dialog', '1');
+                link.href = url.href;
+            }
+        }
+    });
+    document.addEventListener('keydown', event => {
+        if (event.key === 'Escape' && !event.defaultPrevented && !document.querySelector('[role="dialog"],[role="alertdialog"]')) {
+            window.parent.postMessage({ type:'taxcore:dialog-close' }, window.location.origin);
+        }
+    });
+    if (document.body.hasAttribute('data-dialog-updated')) window.parent.postMessage({ type:'taxcore:dialog-updated', complete:!window.location.pathname.endsWith('/imports') }, window.location.origin);
+}
+
 document.querySelector('[data-spreadsheet-toggle]')?.addEventListener('click', event => {
     const active = document.getElementById('payroll-table').classList.toggle('spreadsheet');
     event.currentTarget.setAttribute('aria-pressed', String(active));
@@ -35,10 +65,10 @@ if (employeeSearch) {
                     button.textContent = employee.name + ' · ' + employee.nik + ' · ' + employee.position;
                     button.addEventListener('click', () => {
                         idField.value = employee.id;
-                        const newRecipient = document.querySelector('[name="new_employee"]');
+                        const newRecipient = employeeSearch.form.querySelector('input[type="checkbox"][name="new_employee"]');
                         if (newRecipient) newRecipient.checked = false;
                         employeeSearch.value = employee.name + ' · ' + employee.nik;
-                        document.querySelector('[name="ptkp"]').value = employee.ptkp;
+                        employeeSearch.form.elements.namedItem('ptkp').value = employee.ptkp;
                         results.replaceChildren();
                     });
                     results.append(button);
@@ -65,10 +95,21 @@ document.querySelectorAll('[data-worksheet-reset]').forEach(button => button.add
     button.closest('details').querySelectorAll('[name^="worksheet["]').forEach(field => { field.value = ''; });
 }));
 
-document.querySelector('[name="new_employee"]')?.addEventListener('change', event => {
+document.querySelector('input[type="checkbox"][name="new_employee"]')?.addEventListener('change', event => {
     if (event.target.checked) {
-        document.querySelector('[data-employee-id]').value = '';
-        document.querySelector('[data-employee-search]').value = '';
-        document.querySelector('[data-employee-results]').replaceChildren();
+        event.target.form.querySelector('[data-employee-id]').value = '';
+        event.target.form.querySelector('[data-employee-search]').value = '';
+        event.target.form.querySelector('[data-employee-results]').replaceChildren();
     }
+});
+
+document.querySelectorAll('[data-company-identity]').forEach(form => {
+    const preview = form.querySelector('[data-company-nitku]');
+    const update = () => {
+        const npwp = form.elements.namedItem('npwp').value;
+        preview.value = /^\d{16}$/.test(npwp) ? npwp + '000000' : '';
+    };
+    form.addEventListener('input', update);
+    form.addEventListener('reset', () => queueMicrotask(update));
+    update();
 });

@@ -131,18 +131,40 @@ class SpreadsheetService
             }
             $sheet = $this->xml($xml);
             $rows = [];
+            $previousRow = 0;
             foreach ($sheet->children(self::NS)->sheetData->row as $row) {
+                $rowAttributes = $row->attributes();
+                $rowReference = (string) $rowAttributes['r'];
+                if ($rowReference !== '' && ! preg_match('/^[1-9][0-9]{0,6}$/D', $rowReference)) {
+                    throw ValidationException::withMessages(['file' => 'Referensi baris XLSX tidak valid.']);
+                }
+                $rowNumber = $rowReference === '' ? $previousRow + 1 : (int) $rowReference;
+                if ($rowNumber <= $previousRow || $rowNumber > 1048576) {
+                    throw ValidationException::withMessages(['file' => 'Referensi baris XLSX tidak valid.']);
+                }
+                $previousRow = $rowNumber;
                 $cells = [];
+                $nextColumn = 1;
                 foreach ($row->c as $cell) {
                     if (isset($cell->f)) {
                         throw ValidationException::withMessages(['file' => 'Ganti formula dengan nilai sebelum mengimpor.']);
                     }
                     $attributes = $cell->attributes();
-                    preg_match('/^([A-Z]+)/', (string) $attributes['r'], $match);
-                    $column = 0;
-                    foreach (str_split($match[1] ?? 'A') as $character) {
-                        $column = $column * 26 + ord($character) - 64;
+                    $reference = (string) $attributes['r'];
+                    $column = $nextColumn;
+                    if ($reference !== '') {
+                        if (! preg_match('/^([A-Z]{1,3})([1-9][0-9]{0,6})$/D', $reference, $match) || (int) $match[2] !== $rowNumber) {
+                            throw ValidationException::withMessages(['file' => 'Referensi sel XLSX tidak valid.']);
+                        }
+                        $column = 0;
+                        foreach (str_split($match[1]) as $character) {
+                            $column = $column * 26 + ord($character) - 64;
+                        }
                     }
+                    if ($column > 16384 || array_key_exists($column - 1, $cells)) {
+                        throw ValidationException::withMessages(['file' => 'Referensi sel XLSX tidak valid.']);
+                    }
+                    $nextColumn = $column + 1;
                     $value = (string) $cell->v;
                     if ((string) $attributes['t'] === 's') {
                         $value = $shared[(int) $value] ?? '';
@@ -152,11 +174,8 @@ class SpreadsheetService
                     $cells[$column - 1] = $value;
                 }
                 if ($cells) {
-                    $filled = array_fill(0, max(array_keys($cells)) + 1, '');
-                    foreach ($cells as $column => $value) {
-                        $filled[$column] = $value;
-                    }
-                    $rows[] = $filled;
+                    ksort($cells);
+                    $rows[] = $cells;
                 }
                 if (count($rows) > 10001) {
                     throw ValidationException::withMessages(['file' => 'Maksimal 10.000 baris per impor.']);

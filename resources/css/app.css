@@ -151,6 +151,9 @@
     .data-table tbody tr:last-child td { @apply border-b-0; }
     .data-table tbody tr { @apply transition-colors hover:bg-muted/50; }
     .data-table tfoot { @apply border-t bg-muted/40 font-medium; }
+    #payroll-table .data-table tfoot { @apply bg-slate-900 font-mono font-semibold text-white; }
+    #payroll-table .data-table tfoot td:first-child { @apply bg-slate-900; }
+    #payroll-table .data-table tfoot td:last-child { @apply bg-slate-900; }
     .money { @apply text-right font-mono tabular-nums; }
     .muted { @apply text-muted-foreground; }
     .empty-state { @apply px-6 py-14 text-center; }
@@ -189,6 +192,14 @@
     .dark :is(.app-shell,[role='dialog']) :is(.border-slate-200,.border-slate-300) { border-color:var(--border); }
 }
 .ui-ready [data-navigation-fallback] { display:none; }
+body[data-workspace-frame] { background:var(--popover); }
+body[data-workspace-frame] .main-shell { margin-left:0; padding-top:0; }
+body[data-workspace-frame] .content { max-width:none; padding:1.25rem; }
+body[data-workspace-frame] .page-heading { display:none; }
+body[data-workspace-frame] .panel { box-shadow:none; }
+.content > #payroll-bulk { display:none; }
+body[data-dialog-panel='bulk'] .content > :not(#payroll-bulk):not(.notice) { display:none; }
+body[data-dialog-panel='bulk'] .content > #payroll-bulk { display:block; }
 html[data-nav-collapsed='true'] { --navigation-width:4.5rem; }
 .result-output[data-output-mode='worksheet'],.result-output[data-output-mode='journal'] { grid-template-columns:minmax(0,1fr); }
 .ter-active td { background:var(--accent); color:var(--foreground); font-weight:600; }

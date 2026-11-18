@@ -2,14 +2,11 @@
 
 namespace App\Http\Controllers;
 
-use App\Http\Requests\EmployeeRequest;
 use App\Models\Company;
 use App\Models\Employee;
 use App\Services\AccessService;
-use App\Services\PayrollService;
 use Illuminate\Contracts\View\View;
 use Illuminate\Http\JsonResponse;
-use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 
 class EmployeeController extends Controller
@@ -17,11 +14,10 @@ class EmployeeController extends Controller
     public function index(Request $request, Company $company, AccessService $access): View
     {
         $access->company($request->user(), $company->id);
-        $data = $request->validate(['q' => ['nullable', 'string', 'max:100'], 'edit' => ['nullable', 'integer']]);
+        $data = $request->validate(['q' => ['nullable', 'string', 'max:100']]);
         $employees = $company->employees()->when($data['q'] ?? '', fn ($query, $search) => $query->where(fn ($query) => $query->where('name', 'like', '%'.$search.'%')->orWhere('nik', 'like', '%'.$search.'%')))->orderBy('name')->orderBy('id')->paginate(50)->withQueryString();
-        $editing = isset($data['edit']) ? $company->employees()->findOrFail($data['edit']) : null;
 
-        return view('employees.index', compact('company', 'employees', 'editing'));
+        return view('employees.index', compact('company', 'employees'));
     }
 
     public function lookup(Request $request, Company $company, AccessService $access): JsonResponse
@@ -33,17 +29,16 @@ class EmployeeController extends Controller
         return response()->json($employees);
     }
 
-    public function store(EmployeeRequest $request, Company $company, PayrollService $payroll): RedirectResponse
+    public function store(Request $request, Company $company, AccessService $access): never
     {
-        $payroll->saveEmployee($request->user(), $company, $request->validated());
-
-        return back()->with('status', 'Penerima penghasilan ditambahkan.');
+        $access->company($request->user(), $company->id);
+        abort(405, 'Kelola penerima melalui modal payroll.');
     }
 
-    public function update(EmployeeRequest $request, Company $company, Employee $employee, PayrollService $payroll): RedirectResponse
+    public function update(Request $request, Company $company, Employee $employee, AccessService $access): never
     {
-        $payroll->saveEmployee($request->user(), $company, $request->validated(), $employee);
-
-        return redirect()->route('employees.index',$company)->with('status','Data penerima diperbarui.');
+        $access->company($request->user(), $company->id);
+        $company->employees()->findOrFail($employee->id);
+        abort(405, 'Kelola penerima melalui modal payroll.');
     }
 }

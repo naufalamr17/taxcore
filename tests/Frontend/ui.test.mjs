@@ -3,6 +3,8 @@ import { after, before, test } from 'node:test';
 import { createServer } from 'vite';
 import react from '@vitejs/plugin-react';
 import { fileURLToPath } from 'node:url';
+import { readFileSync } from 'node:fs';
+import { runInNewContext } from 'node:vm';
 
 let server;
 let createElement;
@@ -102,4 +104,55 @@ test('login and setup preserve native password privacy and validation', () => {
     assert.match(login,/action="\/login"/);
     assert.match(login,/autoComplete="current-password"/i);
     assert.ok(!login.includes('password_confirmation'));
+});
+
+function frameHarness(pathname, updated = false) {
+    const handlers = new Map();
+    const inputs = [];
+    const messages = [];
+    const state = { nestedDialog:false };
+    const document = {
+        body:{hasAttribute:name => name === 'data-workspace-frame' || (updated && name === 'data-dialog-updated')},
+        createElement:() => ({}),
+        querySelectorAll:selector => selector === 'form' ? [{append:input => inputs.push(input)}] : [],
+        querySelector:selector => selector === '[role="dialog"],[role="alertdialog"]' && state.nestedDialog ? {} : null,
+        addEventListener:(type, handler) => handlers.set(type, handler),
+    };
+    const window = {location:{origin:'http://localhost:8000',href:'http://localhost:8000'+pathname,pathname},parent:{postMessage:(message, origin) => messages.push({message,origin})}};
+    const source = readFileSync(new URL('../../resources/js/app.js', import.meta.url), 'utf8').replace(/^import '\.\/shadcn\.jsx';\r?\n/, '');
+    runInNewContext(source, {document,window,URL,queueMicrotask});
+    return {handlers,inputs,messages,state};
+}
+
+test('dialog forms retain frame context while import previews remain open', () => {
+    const preview = frameHarness('/companies/1/imports', true);
+    assert.equal(preview.inputs[0].name, '_dialog');
+    assert.equal(preview.inputs[0].value, '1');
+    assert.equal(preview.messages[0].message.type, 'taxcore:dialog-updated');
+    assert.equal(preview.messages[0].message.complete, false);
+    assert.equal(preview.messages[0].origin, 'http://localhost:8000');
+    const saved = frameHarness('/companies/1/payroll/2', true);
+    assert.equal(saved.messages[0].message.complete, true);
+});
+
+test('Escape closes the frame after nested confirmation dialogs have closed', () => {
+    const frame = frameHarness('/companies/1/payroll/create');
+    frame.state.nestedDialog = true;
+    frame.handlers.get('keydown')({key:'Escape',defaultPrevented:false});
+    assert.equal(frame.messages.length, 0);
+    frame.state.nestedDialog = false;
+    frame.handlers.get('keydown')({key:'Escape',defaultPrevented:false});
+    assert.equal(frame.messages[0].message.type, 'taxcore:dialog-close');
+});
+
+test('frame navigation preserves external destinations and export downloads', () => {
+    const frame = frameHarness('/companies/1/payroll/create');
+    for (const href of ['https://example.com/reference','http://localhost:8000/companies/1/exports/xml','http://localhost:8000/companies/1/imports/template']) {
+        const link = {href,hasAttribute:() => false};
+        frame.handlers.get('click')({target:{closest:() => link}});
+        assert.equal(link.href, href);
+    }
+    const link = {href:'http://localhost:8000/profile',hasAttribute:() => false};
+    frame.handlers.get('click')({target:{closest:() => link}});
+    assert.equal(new URL(link.href).searchParams.get('_dialog'), '1');
 });
