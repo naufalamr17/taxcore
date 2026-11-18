@@ -29,7 +29,9 @@ class TaxService
         };
     }
 
-    public const MONEY_FIELDS = ['salary', 'allowance', 'bonus', 'thr', 'overtime', 'bpjs_company', 'pension_employee', 'jht_employee', 'health_employee', 'other_deductions', 'zakat', 'prior_gross', 'prior_tax', 'prior_pension', 'prior_zakat', 'final_prior_gross'];
+    public const WORKSHEET_FIELDS = ['salary', 'allowance', 'overtime', 'bonus', 'thr', 'bpjs_company', 'pension_employee', 'jht_employee', 'expense', 'prior_tax', 'months_worked'];
+
+    public const MONEY_FIELDS = ['salary', 'allowance', 'bonus', 'thr', 'overtime', 'bpjs_company', 'pension_employee', 'jht_employee', 'health_employee', 'other_deductions', 'zakat', 'prior_gross', 'prior_tax', 'prior_pension', 'prior_zakat', 'final_prior_gross', 'contractor_expenses'];
 
     /** @return array<string, mixed> */
     public function rules(): array
@@ -46,8 +48,14 @@ class TaxService
             'daily_scheme' => ['nullable', Rule::in(['DAILY', 'MONTHLY'])],
             'final_kind' => ['nullable', Rule::in(['SEVERANCE', 'PENSION'])],
             'is_final_period' => ['nullable', 'boolean'],
+            'contractor_expense_reference' => ['nullable', 'string', 'max:500'],
             'opening_reason' => ['nullable', 'string', 'max:500'],
         ];
+        $rules['worksheet'] = ['nullable', 'array:'.implode(',', self::WORKSHEET_FIELDS).',reason'];
+        $rules['worksheet.reason'] = ['nullable', 'string', 'max:500'];
+        foreach (self::WORKSHEET_FIELDS as $field) {
+            $rules['worksheet.'.$field] = ['nullable', 'integer', 'between:'.($field === 'months_worked' ? '1,12' : '0,1000000000000')];
+        }
         foreach (self::MONEY_FIELDS as $field) {
             if ($field !== 'salary') {
                 $rules[$field] = ['nullable', 'integer', 'min:0', 'max:1000000000000'];
@@ -57,26 +65,40 @@ class TaxService
         return $rules;
     }
 
-    /** @param array<string, mixed> $input @return array<string, mixed> */
-    public function calculate(array $input): array
+    /** @param array<string, mixed> $input @param array<string, int> $annualComponents @return array<string, mixed> */
+    public function calculate(array $input, array $annualComponents = []): array
     {
         $data = Validator::make($input, $this->rules())->validate();
         foreach (self::MONEY_FIELDS as $field) {
             $data[$field] = (int) ($data[$field] ?? 0);
         }
+        $worksheet = array_filter($data['worksheet'] ?? [], fn ($value, $key) => $key !== 'reason' && $value !== null && $value !== '', ARRAY_FILTER_USE_BOTH);
+        if ($worksheet && empty($data['worksheet']['reason'])) {
+            throw ValidationException::withMessages(['worksheet.reason' => 'Cantumkan sumber atau alasan perubahan kertas kerja.']);
+        }
+        $data['annual_components'] = $annualComponents;
         $data['work_days'] = (int) ($data['work_days'] ?? 1);
-        $data['months_worked'] = (int) ($data['months_worked'] ?? $data['month']);
+        $data['months_worked'] = (int) ($worksheet['months_worked'] ?? $data['months_worked'] ?? $data['month']);
         if ($data['months_worked'] > $data['month']) {
             throw ValidationException::withMessages(['months_worked' => 'Jumlah bulan kerja melebihi masa pajak.']);
         }
         $module = $data['module'];
         $annual = $module === 'annual' || ($module === 'pension' && ($data['month'] == 12 || ($data['is_final_period'] ?? false)));
+        if ($worksheet && ! $annual) {
+            throw ValidationException::withMessages(['worksheet' => 'Edit kertas kerja hanya tersedia untuk rekonsiliasi masa terakhir.']);
+        }
         if ($module === 'monthly' && $data['month'] == 12) {
             throw ValidationException::withMessages(['module' => 'Gunakan modul masa pajak terakhir untuk Desember.']);
         }
         $cash = $data['salary'] + $data['allowance'] + $data['bonus'] + $data['thr'] + $data['overtime'];
         if ($module === 'daily' && ($data['daily_scheme'] ?? 'DAILY') === 'DAILY') {
             $cash += $data['salary'] * ($data['work_days'] - 1);
+        }
+        if ($data['contractor_expenses'] > 0) {
+            if ($module !== 'contractor' || $data['contractor_expenses'] > $cash || empty($data['contractor_expense_reference'])) {
+                throw ValidationException::withMessages(['contractor_expenses' => 'Biaya non-jasa hanya untuk bukan pegawai, tidak melebihi fee bruto, dan wajib memiliki referensi bukti pembayaran terpisah.']);
+            }
+            $cash -= $data['contractor_expenses'];
         }
         $base = $cash + $data['bpjs_company'];
         [$ptkp,$category] = config('tax.ptkp.'.$data['ptkp']);
@@ -97,6 +119,9 @@ class TaxService
         }
         $gross = $base + $taxAllowance;
         $result = $this->taxForGross($data, $gross, $category, $annual, $ptkp);
+        if (isset($worksheet['expense']) && (int) $worksheet['expense'] !== $result['expense']) {
+            throw ValidationException::withMessages(['worksheet.expense' => 'Biaya jabatan/pensiun harus sesuai 5% bruto dan batas masa kerja: '.$result['expense'].'.']);
+        }
         if ($data['method'] !== 'GROSS' && $taxAllowance > 0 && $taxAllowance !== $result['tax']) {
             throw ValidationException::withMessages(['method' => 'Gross-up belum mencapai nilai yang konsisten. Periksa batas tarif.']);
         }
@@ -145,9 +170,19 @@ class TaxService
     private function taxForGross(array $data, int $gross, string $category, bool $annual, int $ptkp): array
     {
         if ($annual) {
+            $worksheet = array_filter($data['worksheet'] ?? [], fn ($value) => $value !== null && $value !== '');
             $annualGross = $data['prior_gross'] + $gross;
+            if (array_intersect(array_keys($worksheet), ['salary', 'allowance', 'overtime', 'bonus', 'thr', 'bpjs_company'])) {
+                $parts = $data['annual_components'] ?: ['salary' => $data['prior_gross'] + $data['salary'], 'allowance' => $data['allowance'], 'overtime' => $data['overtime'], 'bonus' => $data['bonus'], 'thr' => $data['thr'], 'bpjs_company' => $data['bpjs_company'], 'prior_tax_allowance' => 0];
+                $annualGross = (int) ($parts['prior_tax_allowance'] ?? 0);
+                foreach (['salary', 'allowance', 'overtime', 'bonus', 'thr', 'bpjs_company'] as $component) {
+                    $annualGross += (int) ($worksheet[$component] ?? $parts[$component] ?? 0);
+                }
+                $annualGross += $gross - ($data['salary'] + $data['allowance'] + $data['overtime'] + $data['bonus'] + $data['thr'] + $data['bpjs_company']);
+            }
+            $data['prior_tax'] = (int) ($worksheet['prior_tax'] ?? $data['prior_tax']);
             $expense = min(intdiv($annualGross * 5, 100), $data['months_worked'] * ($data['module'] === 'pension' ? 200000 : 500000));
-            $pension = $data['module'] === 'pension' ? 0 : $data['prior_pension'] + $data['pension_employee'] + $data['jht_employee'];
+            $pension = $data['module'] === 'pension' ? 0 : (int) ($worksheet['pension_employee'] ?? $data['annual_components']['pension_employee'] ?? $data['prior_pension'] + $data['pension_employee']) + (int) ($worksheet['jht_employee'] ?? $data['annual_components']['jht_employee'] ?? $data['jht_employee']);
             $pkp = intdiv(max(0, $annualGross - $expense - $pension - $data['prior_zakat'] - $data['zakat'] - $ptkp), 1000) * 1000;
             $progressive = $this->progressive($pkp);
 

@@ -16,7 +16,7 @@ class UserRequest extends FormRequest
     {
         return ['name' => ['required', 'string', 'max:150'], 'username' => ['required', 'alpha_dash', 'max:50', Rule::unique('users')->ignore($this->route('user'))],
             'email' => ['required', 'email', 'max:150', Rule::unique('users')->ignore($this->route('user'))],
-            'password' => [$this->route('user') ? 'nullable' : 'required', 'string', 'min:12', 'max:128'],
+            'password' => [$this->route('user') ? 'nullable' : 'required', 'string', 'min:8', 'max:128'],
             'role' => ['required', Rule::in(array_keys(config('taxcore.roles')))], 'is_active' => ['required', 'boolean'],
             'company_ids' => ['nullable', 'array'], 'company_ids.*' => ['integer', 'distinct', 'exists:companies,id']];
     }

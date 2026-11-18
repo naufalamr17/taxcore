@@ -6,13 +6,13 @@ use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
-#[Fillable(['company_id', 'branch_id', 'user_id', 'module', 'status', 'records', 'errors', 'row_count', 'failure'])]
+#[Fillable(['company_id', 'branch_id', 'user_id', 'module', 'status', 'records', 'errors', 'row_count', 'failure', 'options'])]
 class ImportBatch extends Model
 {
     use HasFactory;
 
     protected function casts(): array
     {
-        return ['records' => 'array', 'errors' => 'array', 'row_count' => 'integer'];
+        return ['records' => 'array', 'errors' => 'array', 'options' => 'array', 'row_count' => 'integer'];
     }
 }

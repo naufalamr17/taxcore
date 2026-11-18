@@ -17,8 +17,15 @@ class PayrollEntryRequest extends FormRequest
     {
         $companyId = $this->route('company')?->id;
         $rules = $tax->rules() + [
-            'employee_id' => ['required', 'integer', Rule::exists('employees', 'id')->where('company_id', $companyId)],
+            'employee_id' => ['required_unless:new_employee,1', 'prohibited_if:new_employee,1', 'nullable', 'integer', Rule::exists('employees', 'id')->where('company_id', $companyId)],
             'branch_id' => ['required', 'integer', Rule::exists('branches', 'id')->where('company_id', $companyId)],
+            'return_to' => ['nullable', 'in:spreadsheet,simulator'],
+            'new_employee' => ['nullable', 'boolean'],
+            'name' => ['required_if:new_employee,1', 'nullable', 'string', 'max:150'],
+            'nik' => ['required_if:new_employee,1', 'nullable', 'digits:16'],
+            'position' => ['required_if:new_employee,1', 'nullable', 'string', 'max:150'],
+            'joined_at' => ['required_if:new_employee,1', 'nullable', 'date_format:Y-m-d'],
+            'employee_name' => ['nullable', 'string', 'max:150'], 'employee_nik' => ['nullable', 'digits:16'], 'employee_position' => ['nullable', 'string', 'max:150'],
             'version' => ['nullable', 'integer', 'min:1'],
             'opening_salary_only' => ['nullable', 'boolean'],
             'opening_reason' => ['nullable', 'string', 'max:500'],

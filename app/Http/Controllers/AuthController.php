@@ -43,7 +43,7 @@ class AuthController extends Controller
 
     public function initialize(Request $request, UserService $users): RedirectResponse
     {
-        $data = $request->validate(['name' => ['required', 'string', 'max:150'], 'username' => ['required', 'alpha_dash', 'max:50'], 'email' => ['required', 'email', 'max:150'], 'password' => ['required', 'string', 'min:12', 'max:128', 'confirmed']]);
+        $data = $request->validate(['name' => ['required', 'string', 'max:150'], 'username' => ['required', 'alpha_dash', 'max:50'], 'email' => ['required', 'email', 'max:150'], 'password' => ['required', 'string', 'min:8', 'max:128', 'confirmed']]);
         Auth::login($users->initialize($data));
         $request->session()->regenerate();
 

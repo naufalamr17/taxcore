@@ -24,11 +24,14 @@ Route::middleware(['auth', EnsureActiveUser::class])->group(function (): void {
     Route::post('/logout', [AuthController::class, 'logout'])->name('logout');
     Route::get('/companies', [CompanyController::class, 'index'])->name('companies.index');
     Route::post('/companies', [CompanyController::class, 'store'])->name('companies.store');
+    Route::delete('/companies/{company}', [CompanyController::class, 'destroy'])->name('companies.destroy');
     Route::put('/companies/{company}', [CompanyController::class, 'update'])->name('companies.update');
+    Route::put('/companies/{company}/branches/{branch}', [CompanyController::class, 'updateBranch'])->name('branches.update');
     Route::post('/companies/{company}/branches', [CompanyController::class, 'branch'])->name('branches.store');
     Route::get('/tax-reference', [WorkspaceController::class, 'reference'])->middleware('can:payroll.view')->name('tax.reference');
     Route::get('/access', [AccessController::class, 'index'])->name('access.index');
     Route::post('/access/users', [AccessController::class, 'store'])->name('access.store');
+    Route::delete('/access/users/{user}', [AccessController::class, 'destroy'])->name('access.destroy');
     Route::put('/access/users/{user}', [AccessController::class, 'update'])->name('access.update');
     Route::put('/access/permissions', [AccessController::class, 'permissions'])->name('access.permissions');
     Route::prefix('/companies/{company}')->group(function (): void {
@@ -49,9 +52,10 @@ Route::middleware(['auth', EnsureActiveUser::class])->group(function (): void {
         Route::post('/simulator', [SimulatorController::class, 'calculate'])->middleware('throttle:60,1')->name('simulator.calculate');
         Route::get('/imports', [ImportController::class, 'index'])->name('imports.index');
         Route::get('/imports/template', [ImportController::class, 'template'])->name('imports.template');
+        Route::post('/imports/demo', [ImportController::class, 'demo'])->name('imports.demo');
         Route::post('/imports/preview', [ImportController::class, 'preview'])->name('imports.preview');
         Route::post('/imports/{batch}/commit', [ImportController::class, 'commit'])->name('imports.commit');
         Route::get('/exports/{format}', [ExportController::class, 'download'])->name('exports.download');
-        Route::get('/audit',[WorkspaceController::class, 'audit'])->name('audit.index');
+        Route::get('/audit', [WorkspaceController::class, 'audit'])->name('audit.index');
     });
 });

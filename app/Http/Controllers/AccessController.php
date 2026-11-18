@@ -30,6 +30,13 @@ class AccessController extends Controller
         return back()->with('status', 'Pengguna ditambahkan.');
     }
 
+    public function destroy(Request $request, User $user, UserService $users): RedirectResponse
+    {
+        $users->remove($request->user(), $user);
+
+        return redirect()->route('access.index')->with('status', 'Akun dihapus.');
+    }
+
     public function update(UserRequest $request, User $user, UserService $users): RedirectResponse
     {
         $users->save($request->user(), $request->validated(), $user);

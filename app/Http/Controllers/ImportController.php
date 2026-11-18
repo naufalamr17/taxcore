@@ -42,9 +42,21 @@ class ImportController extends Controller
     {
         $data = $request->validated();
         $rows = $request->hasFile('file') ? $sheets->read($request->file('file')->getPathname(), strtolower($request->file('file')->getClientOriginalExtension())) : $sheets->delimited($data['pasted']);
-        $imports->preview($request->user(), $company, (int) $data['branch_id'], $data['module'], $rows);
+        $imports->preview($request->user(), $company, (int) $data['branch_id'], $data['module'], $rows, collect($data)->only(['mode', 'period_source', 'year', 'month'])->all());
 
         return redirect()->route('imports.index', ['company' => $company, 'module' => $data['module']])->with('status', 'Pratinjau dibuat. Periksa baris sebelum konfirmasi.');
+    }
+
+    public function demo(Request $request, Company $company, PayrollImportService $imports): RedirectResponse
+    {
+        $data = $request->validate([
+            'branch_id' => ['required', 'integer'], 'module' => ['required', Rule::in(array_keys(config('taxcore.modules')))],
+            'year' => ['required', 'integer', 'between:2024,2026'], 'month' => ['required', 'integer', 'between:1,12'],
+            'count' => ['required', Rule::in([50, 100, 500, 1000, 2500])],
+        ]);
+        $imports->demo($request->user(), $company, $data, (int) $data['count']);
+
+        return redirect()->route('imports.index', ['company' => $company, 'module' => $data['module']])->with('status', 'Data contoh disiapkan. Periksa pratinjau lalu konfirmasi untuk menyimpan.');
     }
 
     public function commit(Request $request, Company $company, ImportBatch $batch, AccessService $access): RedirectResponse

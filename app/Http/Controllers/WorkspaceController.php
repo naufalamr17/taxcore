@@ -18,7 +18,7 @@ class WorkspaceController extends Controller
 
     public function dashboard(Request $request): RedirectResponse
     {
-        $company = $this->access->companies($request->user())->orderBy('id')->first();
+        $company = $this->access->companies($request->user())->find($request->session()->get('active_company_id')) ?? $this->access->companies($request->user())->orderBy('id')->first();
 
         return $company ? redirect()->route('payroll.index', $company) : redirect()->route('companies.index');
     }
@@ -54,6 +54,6 @@ class WorkspaceController extends Controller
         $this->access->company($request->user(), $company->id);
         $events = AuditEvent::with('user')->where('company_id', $company->id)->latest('id')->paginate(50);
 
-        return view('audit',compact('company','events'));
+        return view('audit', compact('company', 'events'));
     }
 }

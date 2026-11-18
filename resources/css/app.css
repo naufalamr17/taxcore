@@ -102,3 +102,25 @@ html[data-theme='dark'] .button.primary { background:#2563eb; border-color:#2563
     .table-scroll { overflow:visible; }
     .data-table { white-space:normal; }
 }
+
+dialog::backdrop { background:rgb(15 23 42 / .65); }
+.ter-active td { background:#dbeafe!important; color:#1d4ed8; font-weight:700; }
+.sidebar-backdrop { display:none; }
+.sidebar.open + .sidebar-backdrop { display:block; position:fixed; inset:0; z-index:30; background:rgb(15 23 42 / .5); }
+@media (min-width:1024px) {
+    .sidebar.open + .sidebar-backdrop { display:none; }
+    html[data-nav-collapsed='true'] .sidebar { width:5rem; padding:1rem .5rem; }
+    html[data-nav-collapsed='true'] .main-shell { margin-left:5rem; }
+    html[data-nav-collapsed='true'] .sidebar :is(.brand>span:last-child,.sidebar-label,.nav-link>span:not(.nav-dot),.sidebar-bottom .min-w-0) { display:none; }
+    html[data-nav-collapsed='true'] .sidebar .nav-link { justify-content:center; overflow:hidden; white-space:nowrap; }
+    html[data-nav-collapsed='true'] .sidebar .brand { justify-content:center; }
+}
+@media print {
+    dialog,.sidebar-backdrop,.output-controls { display:none!important; }
+    .result-output { display:block!important; }
+    [data-output-panel] { display:block!important; }
+    body[data-print-target='worksheet'] [data-output-panel='journal'],body[data-print-target='journal'] [data-output-panel='worksheet'] { display:none!important; }
+    html[data-theme='dark'] :is(.panel,.data-table th,.data-table td) { background:white!important; color:black!important; }
+}
+
+.result-output[data-output-mode='worksheet'],.result-output[data-output-mode='journal'] { grid-template-columns:minmax(0,1fr); }
