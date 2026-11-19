@@ -436,7 +436,7 @@
                                     </div>
 
                                     <div class="flex flex-wrap items-center gap-2">
-                                        <button type="button" onclick="openAddEmployeeModal(currentSubject)" class="btn-cyber-primary px-3.5 py-2 rounded-xl text-xs font-bold flex items-center gap-1.5 cursor-pointer">
+                                        <button type="button" onclick="openAddEmployeeModal()" class="btn-cyber-primary px-3.5 py-2 rounded-xl text-xs font-bold flex items-center gap-1.5 cursor-pointer">
                                             <i class="fa-solid fa-plus"></i><span>Tambah Pegawai</span>
                                         </button>
                                         <button type="button" id="simPullMonthlyBtn" onclick="pullFromMonthlyEmployees()" class="hidden px-3.5 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-cyan-300 border border-cyan-500/30 text-xs font-semibold flex items-center gap-1.5 shadow-2xs cursor-pointer" title="Tarik & Integrasikan Data dari Modul Pegawai Tetap Bulanan ke Masa Desember (1721-A1)">
@@ -448,10 +448,10 @@
                                         <button type="button" onclick="openBulkGeneratorModal()" class="px-3 py-2 rounded-xl border border-amber-300 bg-amber-50/70 hover:bg-amber-100 text-amber-900 text-xs font-semibold flex items-center gap-1.5 cursor-pointer">
                                             <i class="fa-solid fa-wand-magic-sparkles text-amber-600"></i><span>Aksi Massal (1.000+ Data)</span>
                                         </button>
-                                        <button type="button" id="simDownloadTemplateBtn" onclick="downloadImportTemplateExcel(currentSubject)" class="px-3 py-2 rounded-xl bg-white hover:bg-slate-50 text-slate-700 border border-slate-300 text-xs font-medium flex items-center gap-1.5 cursor-pointer">
+                                        <button type="button" id="simDownloadTemplateBtn" onclick="downloadImportTemplateExcel()" class="px-3 py-2 rounded-xl bg-white hover:bg-slate-50 text-slate-700 border border-slate-300 text-xs font-medium flex items-center gap-1.5 cursor-pointer">
                                             <i class="fa-regular fa-file-excel text-emerald-600"></i><span id="simDownloadTemplateBtnLabel">Template Pegawai Bulanan</span>
                                         </button>
-                                        <button type="button" onclick="openImportModal(currentSubject)" class="px-3 py-2 rounded-xl bg-white hover:bg-slate-50 text-slate-700 border border-slate-300 text-xs font-medium flex items-center gap-1.5 cursor-pointer">
+                                        <button type="button" onclick="openImportModal()" class="px-3 py-2 rounded-xl bg-white hover:bg-slate-50 text-slate-700 border border-slate-300 text-xs font-medium flex items-center gap-1.5 cursor-pointer">
                                             <i class="fa-solid fa-file-import text-blue-600"></i><span>Import</span>
                                         </button>
                                         <button type="button" onclick="exportCoretaxXml()" class="px-3 py-2 rounded-xl bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 text-xs font-bold flex items-center gap-1.5 cursor-pointer">

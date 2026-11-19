@@ -20,6 +20,41 @@ const clone = engine(application);
 const subjects = ['pegawai_bulanan', 'pegawai_tahunan', 'pensiunan', 'tidak_tetap', 'bukan_pegawai', 'pesangon_final'];
 const plain = value => JSON.parse(JSON.stringify(value));
 
+test('simulator add import and template buttons use private module state for every subject', () => {
+    const markup = readFileSync(new URL('../../resources/views/workspace.blade.php', import.meta.url), 'utf8');
+    const simulator = markup.slice(markup.indexOf('id="workspace_simulator"'), markup.indexOf('id="workspace_company"'));
+    const handlers = ['openAddEmployeeModal', 'openImportModal', 'downloadImportTemplateExcel'].map(name => simulator.match(new RegExp(`onclick="(${name}\\([^"\\n]*\\))"`))?.[1]);
+    assert.ok(handlers.every(Boolean));
+    const elements = new Map();
+    const getElementById = id => {
+        if (!elements.has(id)) {
+            const classes = new Set(['hidden']);
+            elements.set(id, {value:'',dataset:{},classList:{add:name => classes.add(name),remove:name => classes.delete(name),contains:name => classes.has(name)}});
+        }
+        return elements.get(id);
+    };
+    const downloads = [];
+    const context = {document:{getElementById},setTimeout:() => 0,clearTimeout:() => {},XLSX:{utils:{json_to_sheet:rows => rows,book_new:() => ({}),book_append_sheet:() => {}},writeFile:(_, name) => downloads.push(name)}};
+    context.window = context;
+    runInNewContext(`{ ${application.slice(0, application.indexOf('        Object.assign(window,'))}
+        Object.assign(window, {openAddEmployeeModal, openImportModal, downloadImportTemplateExcel});
+        window.selectSubject = subject => { currentWorkspaceMode = 'simulator'; currentSubject = subject; };
+    }`, context);
+    for (const subject of subjects) {
+        context.selectSubject(subject);
+        getElementById('simPeriodMonth').value = subject === 'pegawai_tahunan' ? '12' : '11';
+        getElementById('simPeriodYear').value = '2026';
+        for (const handler of handlers) runInNewContext(handler, context);
+        assert.equal(getElementById('manualEmployeeModal').classList.contains('hidden'), false);
+        assert.equal(getElementById('modalEmpSubjectType').value, subject);
+        assert.equal(getElementById('importExcelModal').classList.contains('hidden'), false);
+        assert.equal(getElementById('importTargetModuleSelect').value, subject);
+        assert.equal(getElementById('modalEmpYear').value, '2026');
+    }
+    assert.equal(downloads.length, subjects.length);
+    assert.equal(new Set(downloads).size, subjects.length);
+});
+
 for (const subjectType of subjects) {
     test(`${subjectType} preserves reference calculations for every tax method and fractional income`, () => {
         for (const taxMethod of ['GROSS', 'GROSS_UP', 'NETT']) {
