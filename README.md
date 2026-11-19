@@ -1,53 +1,33 @@
 # TaxCore
 
-TaxCore is a Laravel application for Indonesian payroll and PPh Pasal 21 calculations. It provides company workspaces, recipient records, payroll review and finalization, tax simulations, imports, worksheets, accounting journals, and Coretax exports.
-
-The application uses a service layer for business operations. Its interface combines Blade pages with React 19 and shadcn/ui components, styled with Tailwind CSS 4 and bundled by Vite.
+TaxCore is a Laravel payroll and PPh Pasal 21 application. Its main workspace follows [the supplied HTML reference](taxcore_pph_21_enterprise_sistem_payroll_kalkulator_pajak_pp_58_2023%20%2815%29%201.html), including the sidebar, tables, filters, forms, and modal dialogs. Laravel retains authentication, company access, database storage, user management, and audit logging.
 
 ## Features
 
-- Six tax modules covering permanent employees, final-period reconciliation or resignation, periodic pensions, daily workers, non-employees, and final severance or pension benefits.
-- Gross, Gross-Up, and Nett methods with integer-rupiah calculations; evidenced non-service contractor costs can be excluded from the recipient payment and taxable fee.
-- Company and editable branch profiles with NPWP, NITKU, signatory details, and remembered active-company selection. Empty companies and accounts without transaction history can be deleted.
-- Username and password login, company assignments, configurable role permissions, and audit records.
-- Month and year filters, recipient search, spreadsheet editing (identity, period, BPJS, and income), pagination, and bulk payroll actions.
-- Saved-record loading, calculation, and draft saving from the simulator; annual synchronization from finalized monthly history.
-- Audited annual worksheet adjustments with reset to automatic calculations and worksheet/journal print selection.
-- Marked demo data generation for 50 to 2,500 recipients, with previews and a scoped sample reset.
-- Subject-specific XLSX templates, CSV, and pasted-data imports with previews, row validation, file/selected-period choices, and transactional append/replace modes. Replacement protects finalized periods and rejects stale previews.
-- Payroll snapshots, tracked corrections, printable worksheets, and balanced accounting journals.
-- XLSX and XML exports using BPMP, BP21, or BPA1 structures according to the tax module.
-
-## UI and navigation
-
-The interface uses the official shadcn/ui New York components with neutral black-and-white styling, a light sidebar, rounded cards, system typography, light/dark modes, and Lucide icons. React powers the responsive sidebar, company and account menus, authentication forms, confirmation dialogs, TER tables, and worksheet/journal controls. Blade keeps the existing form submissions and payroll tables, using the same theme tokens. Calculations and authorization remain in Laravel services.
-
-Workspace navigation resolves the active company from the companies the signed-in user can access. It remains available on company, access-management, and tax-reference pages. Without a selected company, or when its access has been revoked, company-specific menus stay visible but disabled until a company is explicitly selected. The desktop sidebar can collapse to icons; its restore button remains in the header. Mobile navigation uses a dismissible Sheet. Opening company management clears the active selection and shows its own label in the company menu. Choosing a company or opening its workspace enables payroll navigation again. Login uses the original two-column layout on desktop.
-
-- UI components: `resources/js/components/ui/` (official shadcn registry sources converted to JavaScript).
-- Application components: `resources/js/components/{workspace,tax-widgets,auth-form}.jsx`.
-- Mount points: `resources/js/shadcn.jsx`; server-rendered navigation and auth forms remain as fallbacks.
-- Theme tokens and Blade styles: `resources/css/app.css`.
-- Component aliases and generation settings: `components.json`, `jsconfig.json`, and `vite.config.js`.
-
-The component registry is [shadcn/ui New York](https://ui.shadcn.com/docs/components). The installed component sources are part of this repository. The current shadcn CLI hit an npm 11 compatibility error; components were imported from its official registry without enabling dependency install scripts. [React supports this incremental integration with existing pages](https://react.dev/learn/add-react-to-an-existing-project).
-
-After changing UI dependencies or Vite configuration, restart `npm run dev`. The dev server binds to `127.0.0.1` to keep React Refresh URLs valid on Windows. A production build uses `npm run build`.
+- Six modules: monthly permanent employees, December/resignation (1721-A1), periodic pensions, daily workers, non-employees, and final severance/pension benefits.
+- Gross, Gross-Up, and Nett methods using the reference interface's calculation engine.
+- Monthly/annual payroll views, years 2020–2035, search, pagination, and spreadsheet autosave.
+- Combined company/TKU profiles with NPWP, 22-digit NITKU, address, and independent branch signatories.
+- Reference-style dialogs for payroll input, TER tables, imports, bulk generation, worksheets, and accounting journals.
+- Module-specific templates, Excel/CSV uploads, pasted tables, import previews, and append/replace modes. Replacement preserves other modules and periods.
+- Generators for 100, 500, or 1,000 example payroll rows and a sample reset that preserves manual records.
+- Editable annual worksheets and worksheet/journal printing.
+- XLSX and XML exports matching the HTML reference, with export actions recorded in the audit log.
+- Configurable role permissions, company assignments, and retained Laravel user management.
 
 ## Requirements
 
-- PHP 8.3 or later within the supported PHP 8.x range.
-- Composer 2.
-- Node.js matching the installed Vite requirement, `^20.19.0 || >=22.12.0`.
-- MySQL for the Laragon setup below.
-- PHP extensions required by Laravel, plus PDO MySQL, SimpleXML, XMLWriter, and ZIP for database and spreadsheet operations.
+- PHP 8.3 and Composer 2.
+- Node.js compatible with Vite: `^20.19.0 || >=22.12.0`.
+- MySQL/MariaDB for the Laragon setup below.
+- Laravel's PHP extensions, PDO MySQL, SimpleXML, XMLWriter, and ZIP.
 - PDO SQLite and SQLite3 for the test suite.
 
-Direct dependencies are defined in [composer.json](composer.json) and [package.json](package.json). Lockfiles pin the installed versions.
+Package versions are pinned in `composer.lock` and `package-lock.json`.
 
-## Fresh installation
+## Local installation
 
-Run these commands from the project root. The examples use PowerShell.
+Run from the project root. These examples use PowerShell.
 
 ```powershell
 composer install
@@ -58,7 +38,7 @@ php artisan key:generate --no-interaction
 npm ci
 ```
 
-Configure the application and database in `.env`. Replace the SQLite defaults with the MySQL connection for this setup, and supply your local database credentials.
+Configure `.env` with your local database credentials:
 
 ```dotenv
 APP_NAME=TaxCore
@@ -78,203 +58,139 @@ CACHE_STORE=database
 QUEUE_CONNECTION=database
 ```
 
-Create the database using a MySQL client with permission to create databases.
-
-```sql
-CREATE DATABASE IF NOT EXISTS taxcore
-    CHARACTER SET utf8mb4
-    COLLATE utf8mb4_unicode_ci;
-```
-
-Run the migrations, initialize default role permissions, and build the frontend.
+Create the `taxcore` database, then run:
 
 ```powershell
 php artisan migrate --no-interaction
 php artisan db:seed --no-interaction
 npm run build
-```
-
-The default seeder initializes role permissions. Create the first administrator through the setup screen.
-
-## Run locally
-
-Start the application server.
-
-```powershell
 php artisan serve --host=127.0.0.1 --port=8000 --no-interaction
 ```
 
-Keep a queue worker running in a second terminal for imports containing more than 200 rows.
+Open `/login` on the configured application URL. For Laragon virtual hosts, point the document root to `public` and set `APP_URL` accordingly.
+
+During frontend development, run `npm run dev` in another terminal. Rebuild with `npm run build` after frontend changes when the development server is not running.
+
+## HTML demo seeder
+
+`DatabaseSeeder` initializes default role permissions and calls [HtmlDemoSeeder](database/seeders/HtmlDemoSeeder.php). Demo data is created only when `APP_ENV` is `local` or `testing`.
+
+For a fresh local database, the demo contains:
+
+- **1 company:** PT Nusantara Teknologi Mandiri, NPWP `0127543973027000`.
+- **2 TKUs:** head office in Jakarta and the Surabaya branch.
+- **6 recipients:** Budi Santoso, Rina Wijaya, Dimas Prakoso, Siti Nurhaliza, Hendra Wijaya, and Nadia Kusuma.
+- **8 payroll rows:** six in November 2026 and two annual rows in December 2026, with identity, PTKP, tax method, salary, allowances, bonus, THR, BPJS, and pension components taken from the HTML reference.
+- **4 active accounts** with the roles listed below.
+
+| TKU | Code | NITKU | Signatory |
+| --- | --- | --- | --- |
+| Kantor Pusat, Jakarta | `000000` | `0127543973027000000000` | Ir. Hendra Wijaya, M.B.A. |
+| Cabang Surabaya | `000001` | `0127543973027000000001` | Budi Santoso, S.E. |
+
+Payroll examples belong to the head-office TKU. The Surabaya TKU starts without payroll rows so branch isolation remains intact. Select **November 2026** to see the six initial rows, or **December 2026** for the two annual examples.
+
+### Demo login accounts
+
+These credentials are for local development and testing only. Passwords are hashed in the database.
+
+| Username | Password | Name | Role |
+| --- | --- | --- | --- |
+| `admin` | `admin123` | Super Administrator | `SUPER_ADMIN` |
+| `taxmanager` | `pajak123` | Budi Santoso, S.E. | `TAX_MANAGER` |
+| `payroll` | `gaji1234` | Siti Nurhaliza, S.Psi. | `PAYROLL_STAFF` |
+| `auditor` | `audit123` | Rina Wijaya, S.Ak. | `AUDITOR` |
+
+Emails use `<username>@taxcore.test`. Newly created demo accounts are assigned to the demo company. Super Admin can access every company; the other accounts follow their company assignments and role permissions.
+
+The HTML's `gaji123` password has seven characters. The seeded Payroll Staff account uses **`gaji1234`** to meet the application's eight-character minimum.
+
+### Running the seeder again
 
 ```powershell
-php artisan queue:work --sleep=2 --tries=1 --timeout=60 --no-interaction
+php artisan db:seed --no-interaction
 ```
 
-For frontend development, run the Vite development server in another terminal.
+To run only the demo dataset:
 
 ```powershell
-npm run dev
+php artisan db:seed --class=HtmlDemoSeeder --no-interaction
 ```
 
-Open the setup screen and create a Super Admin using a username, email address, and password of at least 8 characters. The setup route closes after the first user exists. Subsequent accounts are managed through Manajemen Akses. [First administrator setup](http://localhost:8000/setup)
+Seeding adds missing demo records without resetting existing accounts, passwords, roles, account status, company assignments, profiles, employee identities, payroll edits, or permission overrides. Existing usernames keep their current credentials; the password table applies only to newly created accounts. Existing recipients with a matching NIK are skipped rather than having their identity or payroll overwritten.
 
-For Laragon virtual hosts, point the site's document root to this project's `public` directory and set `APP_URL` to the configured site URL.
+The operation is transactional. If an existing `admin` account is inactive or has another role and no active Super Admin exists, the demo seeder stops and rolls back instead of granting privileges or reactivating that account.
 
-## Payroll workflow
+### Installation without demo data
 
-1. Create a company with its NPWP and signatory details. The application creates the head-office branch with code `000000`.
-2. Add further branches and assign users to their companies.
-3. Register recipients in Database Penerima, including their NIK or NPWP, PTKP status, and employment dates.
-4. Select a company, branch, module, month, and year. Enter salary components manually or import a completed template.
-5. Save payroll as Draft, review the period, and finalize it.
-6. Export finalized payroll or open its worksheet to print or save as PDF through the browser.
-7. To amend finalized payroll, open a correction with a reason. The application archives the previous revision and returns the period to Draft.
+Seed only role permissions:
 
-The payroll states progress from **Draft** to **Reviewed** to **Finalized**. Editing a reviewed entry returns its run to Draft.
+```powershell
+php artisan migrate --no-interaction
+php artisan db:seed --class=RolePermissionSeeder --no-interaction
+```
 
-Finalization stores the calculation results and company identity used for the period. Later company-profile changes preserve those finalized snapshots.
+Open `/setup` to create the first Super Admin. Setup closes after the first account exists. Later accounts are managed through **Manajemen Akses**. In production, the default seeder initializes role permissions but skips demo accounts and payroll.
 
-### Final-period reconciliation
+## Workspace workflow
 
-Use the final-period module for December or a permanent employee's resignation month. An earlier final period must match the recipient's recorded end date.
+1. Log in and choose the company/TKU in the payroll filter.
+2. Select the month and year, then use **Tambah Pegawai** or import a module template.
+3. Edit through the same modal or enable **Mode Spreadsheet** for automatic saving.
+4. Use the simulator navigation to work with the other tax modules.
+5. Open **Kertas Kerja** for calculation details, annual adjustments, accounting journals, and printing. The annual module can pull monthly data.
+6. Export Excel or XML from the workspace. Use **Log Audit** and **Manajemen Akses** for activity history and account administration.
 
-The application accumulates earlier finalized payroll for the same recipient and company. Missing history requires opening balances and a recorded reason.
-
-BPA1 export requires sufficient detail for its income components. When the opening gross balance consists entirely of salary, confirm that explicitly in the form. For mixed salary, allowances, bonus, THR, insurance, or tax benefits, import the earlier monthly detail before exporting BPA1.
-
-Nett calculations protect the recipient's cash income before employee cash deductions. Employer-paid tax is included as a taxable benefit.
+The main HTML workspace does not require the older Draft/Reviewed/Finalized workflow. Legacy server services remain available internally; the main interface uses `HtmlWorkspaceService` and the reference JavaScript engine.
 
 ## Roles and access
 
-The following permissions apply by default. Super Admin can change the permission matrix for the other roles.
-
-| Role | Default capabilities |
+| Role | Workspace access by default |
 | --- | --- |
-| Super Admin | All permissions and all companies |
-| Tax Manager | View, edit, import, export, review, finalize, and correct assigned-company payroll |
-| Payroll Staff | View, edit, and import assigned-company payroll |
-| Auditor | View and export assigned-company payroll |
+| Super Admin | All permissions and companies; user management and company audit |
+| Tax Manager | View, edit, import, export, and worksheet corrections for assigned companies |
+| Payroll Staff | View, edit, and import for assigned companies |
+| Auditor | View and export for assigned companies |
 
-User accounts carry company assignments. Imports require both payroll import and edit permissions. Passwords require at least 8 characters. The application protects the last active Super Admin from deactivation, deletion, or demotion. Accounts with import/review history must be deactivated instead of deleted.
+Super Admin can configure the permission matrix. The application protects the last active Super Admin and checks company/branch access on server requests. Stale payroll edits are rejected using record versions.
 
-## Imports
+## Export scope
 
-Download the TaxCore template from the selected module. It includes `Masa_Pajak`, `Tahun_Pajak`, recipient identity, tax method, and salary-component columns.
+Workspace exports follow the prototype: XLSX uses a `Coretax_Import` sheet and XML uses an `eBupot21Coretax` root. These are the HTML reference's formats. Successful acceptance by DJP/Coretax still requires manual upload validation.
 
-- Use XLSX, CSV, or pasted tabular data with the template headers.
-- Enter dates as `YYYY-MM-DD` and monetary amounts as whole rupiah.
-- Preserve NIK, NPWP, and NITKU as text so leading zeroes survive.
-- XLSX imports read the first standard worksheet and require formulas to be replaced with values.
-- The upload limit is 10 MB, with up to 10,000 data rows per import. XLSX contents are also limited to 30 MB after decompression.
-- Review the preview and fix reported errors before confirming.
-- Imports with up to 200 rows run synchronously. Larger imports are queued after confirmation.
-- Select whether periods come from the file or the active month/year. Review the resulting periods in the preview.
-- APPEND rejects duplicates. REPLACE archives and replaces draft/reviewed entries only for the selected company, branch, module, and periods in the preview. Changes after preview require a new preview.
-- A failed commit rolls back replacement, employee, and payroll changes together.
+## Key files
 
-Import states include Preview, Queued, Completed, and Failed. Use Perbarui status on the imports page to check queued work.
-
-## Exports
-
-Exports require finalized payroll for the selected branch, year, module, and month range.
-
-- BPMP handles regular permanent-employee and periodic-pension withholding.
-- BP21 handles daily-worker, non-employee, and final-benefit records. Each entry needs the recipient's NITKU, payment-document number, and document date.
-- BPA1 handles final-period reconciliation.
-- Export selections must have a consistent document family and withholding-company NPWP snapshot.
-- Worksheets include calculation details and accounting journals. Browser printing supports saving them as PDF.
-
-Bundled XML fixtures and TER reference data support automated format and calculation checks. Actual acceptance of exported files in Coretax remains a manual validation step. [DJP XML templates and converters](https://pajak.go.id/reformdjp/coretax/template-xml-dan-converter-excel-ke-xml)
-
-## Service layer
-
-Controllers coordinate requests, authorization, validation, and responses. The services own reusable business operations.
-
-| Service | Responsibility |
+| Path | Purpose |
 | --- | --- |
-| [TaxService](app/Services/TaxService.php) | Tax validation, TER lookup, progressive calculations, gross-up, and object-code selection |
-| [PayrollService](app/Services/PayrollService.php) | Recipient changes, payroll calculations, history, review, finalization, corrections, and bulk actions |
-| [PayrollImportService](app/Services/PayrollImportService.php) | Import templates, preview validation, and transactional batch commits |
-| [SpreadsheetService](app/Services/SpreadsheetService.php) | XLSX generation, XLSX reading, and delimited-data parsing |
-| [CoretaxExportService](app/Services/CoretaxExportService.php) | Finalized-record selection and document generation |
-| [JournalService](app/Services/JournalService.php) | Balanced accounting entries |
-| [AccessService](app/Services/AccessService.php) | Permission checks, company access, and audit recording |
-| [CompanyService](app/Services/CompanyService.php) | Company and branch operations |
-| [UserService](app/Services/UserService.php) | First-admin creation, account management, and role permissions |
-
-## Project structure
-
-```text
-app/
-  Http/Controllers/       HTTP entry points
-  Http/Middleware/        Active-account checks
-  Http/Requests/          Form validation and authorization
-  Jobs/                   Queued import processing
-  Models/                 Companies, recipients, payroll, access, and audit data
-  Services/               Business operations
-config/
-  tax.php                 Rule version, supported years, PTKP, and TER bands
-  taxcore.php             Tax modules, roles, and default permissions
-database/
-  factories/              Test and development data factories
-  migrations/             Database schema
-  seeders/                Default permissions and development seeders
-resources/
-  views/                  Blade pages and components
-  css/                    Application styles
-  js/                     React/shadcn components and interface behavior
-routes/web.php            Application routes
-tests/
-  Feature/                Calculation, workflow, security, navigation, import, and export checks
-  Frontend/               React rendering and UI contract checks
-  Fixtures/coretax/        DJP sample XML and TER reference data
-```
+| `resources/views/workspace.blade.php` | Reference workspace markup and dialogs |
+| `resources/js/html-workspace.js` | Reference calculations and Laravel persistence integration |
+| `resources/css/html-workspace.css` | Reference styles and Tailwind utilities |
+| `app/Http/Controllers/HtmlWorkspaceController.php` | Workspace, persistence, and export-audit endpoints |
+| `app/Services/HtmlWorkspaceService.php` | Database mapping, version checks, and company isolation |
+| `database/seeders/HtmlDemoSeeder.php` | Reference company, TKU, payroll, and login accounts |
+| `database/seeders/RolePermissionSeeder.php` | Default role permissions |
 
 ## Tests and checks
 
-The test suite uses an in-memory SQLite database through [phpunit.xml](phpunit.xml).
-
 ```powershell
-php vendor/bin/pest --compact
+php -d extension=pdo_sqlite -d extension=sqlite3 vendor/bin/pest --compact
 npm run test:ui
 npm run build
 php artisan view:cache --no-interaction
+php vendor/bin/pint --dirty --format agent
 ```
 
-For a Laragon PHP installation where SQLite extensions are available but disabled, run Pest directly with the extensions enabled for that process.
-
-```powershell
-php -d extension=pdo_sqlite -d extension=sqlite3 vendor/bin/pest --compact
-```
-
-Coverage includes TER thresholds, gross-up, refunds, final-period history, payroll snapshots, stale updates, company isolation, roles, import rollback, 1,000/2,500-row imports, retained navigation on company-independent pages, and XML field structure. UI checks cover collapsed-sidebar recovery, escaped data, CSRF form actions, and the eight-character password boundary.
-
-Format PHP using the installed Pint binary.
-
-```powershell
-php vendor/bin/pint app database routes config/tax.php config/taxcore.php tests/Feature --format agent
-```
+The PHP suite uses an isolated SQLite test database. Seeder coverage includes reference data, account hashing and login, repeat runs, existing-data preservation, transaction rollback, and the production guard. Frontend tests compare calculation results with the supplied HTML and exercise persistence, dialogs, imports, exports, spreadsheet editing, branch isolation, user management, audit, and bulk data in native Chrome when Chrome is installed. Browser tests use a temporary database and profile.
 
 ## Troubleshooting
 
 | Symptom | Action |
 | --- | --- |
-| Unknown database `taxcore` | Create the configured MySQL database and verify the credentials in `.env` |
-| Missing sessions, cache, or jobs tables | Run the migrations before opening setup or starting workers |
-| SQLite driver unavailable during tests | Enable PDO SQLite and SQLite3, or use the direct Pest command above |
-| Vite manifest missing or frontend changes absent | Run `npm run build` or keep `npm run dev` running |
-| Import remains Queued | Start the queue worker and check `php artisan queue:failed --no-interaction` |
-| Export rejects the selected period | Check payroll finalization, document family, snapshot NPWP, and required document fields |
-| Environment changes are not reflected | Run `php artisan config:clear --no-interaction` and restart the worker |
-
-## Current scope
-
-- Configured tax years are 2024 through 2026.
-- Calculations cover standard resident-taxpayer scenarios without DTP facilities.
-- Each recipient has one consolidated payment per company, module, and period. Separate payments within the same month require extending the payment model.
-- Imports support the first standard XLSX worksheet, CSV, and pasted data. Legacy binary XLS and multi-sheet imports require additional support.
-- Tests verify the implemented calculations and file structures. Browser UAT and successful submission to Coretax remain separate verification tasks. Computer Use could not verify the browser URL during this UI update, so live sidebar behavior has not been signed off.
-
-### Build-tool advisory
-
-`npm audit --omit=dev` reports zero runtime vulnerabilities. The full `npm audit` currently reports seven high-severity dependency paths through picomatch in the Vite development/build toolchain. The upstream advisory lists no patched version. This update keeps the existing Vite major rather than applying the suggested incompatible downgrades. Avoid processing untrusted glob patterns in development tooling. [GHSA-fc5q-39xc-vjpf](https://github.com/advisories/GHSA-fc5q-39xc-vjpf)
+| Unknown database `taxcore` | Create the database and check `.env` |
+| Missing tables or TKU profile column | Run `php artisan migrate --no-interaction` |
+| Demo rows are not visible | Select the demo company, head-office TKU, and November/December 2026 |
+| Demo password does not work for an existing username | Use that account's current password; seeding does not reset accounts |
+| Demo data is not created | Check that `APP_ENV` is `local` or `testing` |
+| SQLite driver unavailable during tests | Use the direct Pest command with SQLite extensions above |
+| Frontend changes do not appear | Run `npm run build` or keep `npm run dev` running |
+| Environment changes are not reflected | Run `php artisan config:clear --no-interaction` |
