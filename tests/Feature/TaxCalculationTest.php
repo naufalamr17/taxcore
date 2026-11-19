@@ -98,4 +98,4 @@ test('journals balance for all tax methods including refunds', function (array $
 ]);
 test('unsupported years negative money and monthly December are rejected', function (array $changes): void {
     expect(fn () => app(TaxService::class)->calculate(taxInput($changes)))->toThrow(ValidationException::class);
-})->with([[['year' => 2023]], [['year' => 2027]], [['salary' => -1]], [['month' => 12]], [['other_deductions' => 20000000]]]);
+})->with([[['year' => 2019]], [['year' => 2036]], [['salary' => -1]], [['month' => 12]], [['other_deductions' => 20000000]]]);

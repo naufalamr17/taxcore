@@ -67,18 +67,21 @@ test('simulator loads scoped saved data and can save an updated calculation', fu
     expect(PayrollEntry::count())->toBe(0);
     $this->post(route('payroll.store', $company), parityInput($branch, $employee, ['return_to' => 'simulator']))->assertRedirect();
     $entry = PayrollEntry::firstOrFail();
-    $this->get(route('simulator.index', ['company' => $company, 'entry' => $entry->id]))->assertOk()->assertSee('Muat ke simulator')->assertSee('Hitung & perbarui draft', false)->assertViewHas('data', fn ($data) => $data['salary'] === 10000000);
+    $this->get(route('simulator.index', ['company' => $company, 'entry' => $entry->id]))->assertOk()
+        ->assertSee('id="manualEmployeeModal"', false)->assertDontSee('Muat ke simulator')
+        ->assertViewHas('bootstrap', fn (array $state): bool => $state['mode'] === 'simulator' && $state['employees'][0]['gajiPokok'] === 10000000);
     $this->put(route('payroll.update', [$company, $entry]), parityInput($branch, $employee, ['version' => 1, 'salary' => 11000000, 'return_to' => 'simulator']))->assertRedirect(route('simulator.index', ['company' => $company, 'entry' => $entry->id]));
     expect($entry->fresh()->tax)->toBe(330000);
-    $this->get(route('simulator.index', ['company' => $company, 'entry' => $entry->id]))->assertOk()->assertViewHas('data', fn ($data) => $data['version'] === 2);
+    $this->get(route('simulator.index', ['company' => $company, 'entry' => $entry->id]))->assertOk()
+        ->assertViewHas('bootstrap', fn (array $state): bool => $state['employees'][0]['_version'] === 2);
     $this->put(route('payroll.update', [$company, $entry]), parityInput($branch, $employee, ['version' => 2, 'salary' => 12000000, 'return_to' => 'simulator']))->assertRedirect();
     expect($entry->fresh()->version)->toBe(3);
     $outsider = Company::factory()->create();
     Branch::factory()->for($outsider)->create();
-    $this->get(route('simulator.index', ['company' => $outsider, 'entry' => $entry->id]))->assertNotFound();
+    $this->get(route('payroll.show', [$outsider, $entry]))->assertNotFound();
 });
 
-test('simulator saved list searches across modules and all months only within selected company', function (): void {
+test('simulator provides saved records and reference filters across modules and months', function (): void {
     $admin = User::factory()->create(['role' => 'SUPER_ADMIN']);
     $company = Company::factory()->create();
     $branch = Branch::factory()->for($company)->create();
@@ -86,13 +89,14 @@ test('simulator saved list searches across modules and all months only within se
     $payroll = app(PayrollService::class);
     $payroll->saveEntry($admin, $company, parityInput($branch, $employee));
     $payroll->saveEntry($admin, $company, parityInput($branch, $employee, ['module' => 'contractor', 'month' => 10, 'tax_object_code' => '21-100-07', 'withholding_date' => '2026-10-31']));
-    $this->actingAs($admin)->get(route('simulator.index', ['company' => $company, 'branch_id' => $branch->id, 'year' => 2026, 'month' => 11, 'all_modules' => 1, 'all_months' => 1, 'q' => 'Dicari']))->assertOk()->assertViewHas('entries', fn ($entries) => $entries->total() === 2)
-        ->assertViewHas('totals', fn ($totals) => $totals['count'] === 2 && $totals['gross'] === 20000000);
-    $this->get(route('simulator.index', ['company' => $company, 'year' => 2026, 'month' => 11, 'q' => 'Tidak ada']))->assertOk()->assertViewHas('entries', fn ($entries) => $entries->total() === 0)
-        ->assertViewHas('totals', fn ($totals) => $totals['count'] === 0 && $totals['gross'] === 0);
+    $this->actingAs($admin)->get(route('simulator.index', ['company' => $company, 'branch_id' => $branch->id, 'year' => 2026, 'month' => 11]))->assertOk()
+        ->assertSee('id="simSavedSearchInput"', false)->assertSee('id="simSavedShowAllModules"', false)
+        ->assertViewHas('bootstrap', fn (array $state): bool => count($state['employees']) === 2 && array_sum(array_column($state['employees'], 'gajiPokok')) === 20000000);
+    $this->get(route('simulator.index', ['company' => $company, 'year' => 2026, 'month' => 0]))->assertOk()
+        ->assertViewHas('bootstrap', fn (array $state): bool => (int) $state['selection']['month'] === 0 && (int) $state['selection']['year'] === 2026);
 });
 
-test('simulator lists saved payroll first and totals every filtered page within the selected branch', function (): void {
+test('simulator loads every saved row for client filtering with the selected branch active', function (): void {
     $admin = User::factory()->create(['role' => 'SUPER_ADMIN']);
     $company = Company::factory()->create();
     $branch = Branch::factory()->for($company)->create();
@@ -104,10 +108,13 @@ test('simulator lists saved payroll first and totals every filtered page within 
     PayrollEntry::factory()->create();
 
     $this->actingAs($admin)->get(route('simulator.index', ['company' => $company, 'branch_id' => $branch->id, 'year' => 2026, 'month' => 11, 'per_page' => 25, 'page' => 2]))
-        ->assertOk()->assertViewHas('entries', fn ($entries) => $entries->total() === 26 && $entries->count() === 1)
-        ->assertViewHas('totals', fn ($totals) => $totals['count'] === 26 && $totals['salary'] === 260000000 && $totals['gross'] === 260000000 && $totals['tax'] === 5200000 && $totals['take_home'] === 254800000)
-        ->assertSeeInOrder(['Total Subjek Modul Ini', 'Daftar Data Tersimpan', 'Tarif / DPP', 'TOTAL KOLEKTIF (26 PENERIMA)', 'id="simulator-calculation"'], false)
-        ->assertSee('data-workspace-dialog', false)->assertSee('data-spreadsheet-toggle', false);
+        ->assertOk()->assertViewHas('bootstrap', function (array $state) use ($branch): bool {
+            $records = collect($state['employees'])->where('companyId', 'branch_'.$branch->id);
+
+            return $state['activeCompanyId'] === 'branch_'.$branch->id && $records->count() === 26 && $records->sum('gajiPokok') === 260000000;
+        })
+        ->assertSee('id="simSavedListTableBody"', false)->assertSee('id="simSpreadsheetToggleBtn"', false)
+        ->assertDontSee('id="simulator-calculation"', false);
 });
 
 test('simulator keeps saved payroll read only for auditors', function (): void {
@@ -119,9 +126,9 @@ test('simulator keeps saved payroll read only for auditors', function (): void {
     $auditor->companies()->attach($company);
 
     $this->actingAs($auditor)->get(route('simulator.index', ['company' => $company, 'branch_id' => $branch->id, 'year' => 2026, 'month' => 11]))
-        ->assertOk()->assertSee('Kertas kerja')
-        ->assertDontSee('data-editable', false)->assertDontSee('data-spreadsheet-toggle', false)
-        ->assertDontSee('name="employee_name"', false)->assertDontSee('Generator Pegawai &amp; Aksi Massal', false);
+        ->assertOk()->assertSee('Kertas Kerja')
+        ->assertViewHas('bootstrap', fn (array $state): bool => count($state['employees']) === 1 && in_array('payroll.view', $state['permissions'], true) && ! in_array('payroll.edit', $state['permissions'], true));
+    $this->postJson(route('workspace.employees', [$company, $branch]), ['upserts' => [], 'deletes' => []])->assertForbidden();
 });
 
 test('new payroll recipient is created together with the first payroll entry', function (): void {
@@ -408,7 +415,8 @@ test('selected company persists across dashboard navigation and branch edits pre
     $other = Company::factory()->create();
     Branch::factory()->for($other)->create();
     $this->actingAs($admin)->get(route('payroll.index', $other))->assertOk()->assertSessionHas('active_company_id', $other->id);
-    $this->get(route('dashboard'))->assertRedirect(route('payroll.index', $other));
+    $this->get(route('dashboard'))->assertOk()
+        ->assertViewHas('bootstrap', fn (array $state): bool => collect($state['companies'])->firstWhere('id', $state['activeCompanyId'])['companyId'] === $other->id);
     $employee = Employee::factory()->for($company)->create();
     $payroll = app(PayrollService::class);
     $entry = $payroll->saveEntry($admin, $company, parityInput($branch, $employee));
@@ -463,7 +471,8 @@ test('spreadsheet preserves an annual worksheet adjustment and stale versions ca
     $employee = Employee::factory()->for($company)->create(['joined_at' => '2026-12-01']);
     $input = parityInput($branch, $employee, ['module' => 'annual', 'month' => 12, 'withholding_date' => '2026-12-31', 'worksheet' => ['bonus' => 1000000, 'reason' => 'Koreksi bonus']]);
     $entry = app(PayrollService::class)->saveEntry($admin, $company, $input);
-    $this->actingAs($admin)->get(route('payroll.index', ['company' => $company, 'branch_id' => $branch->id, 'module' => 'annual', 'month' => 12, 'year' => 2026]))->assertOk()->assertSee('name="worksheet[bonus]" value="1000000"', false);
+    $this->actingAs($admin)->get(route('payroll.index', ['company' => $company, 'branch_id' => $branch->id, 'module' => 'annual', 'month' => 12, 'year' => 2026]))->assertOk()
+        ->assertViewHas('bootstrap', fn (array $state): bool => $state['employees'][0]['subjectType'] === 'pegawai_tahunan' && $state['employees'][0]['_version'] === 1);
     $this->put(route('payroll.update', [$company, $entry]), $input + ['version' => 1, 'return_to' => 'spreadsheet'])->assertRedirect();
     expect($entry->fresh()->input['worksheet']['bonus'])->toBe(1000000);
     $this->put(route('payroll.update', [$company, $entry]), $input + ['version' => 1, 'return_to' => 'spreadsheet'])->assertSessionHasErrors('version');

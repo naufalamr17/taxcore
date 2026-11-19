@@ -2,8 +2,8 @@
 
 return [
     'version' => 'PP58-PMK168-2024-v1',
-    'first_year' => 2024,
-    'last_year' => 2026,
+    'first_year' => 2020,
+    'last_year' => 2035,
     'source' => 'https://jdih.kemenkeu.go.id/dok/pp-58-tahun-2023/view',
     'ptkp' => [
         'TK/0' => [54000000, 'A'], 'TK/1' => [58500000, 'A'],

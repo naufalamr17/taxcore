@@ -153,7 +153,7 @@ test('queued imports recheck user permissions before writing', function (): void
     expect(fn () => (new CommitPayrollImport($batch->id))->handle(app(PayrollImportService::class)))->toThrow(AuthorizationException::class);
     expect(PayrollEntry::count())->toBe(0);
 });
-test('a thousand payroll rows import and produce paginated full-period totals', function (): void {
+test('a thousand payroll rows import and remain available for full-period totals', function (): void {
     $user = User::factory()->create(['role' => 'SUPER_ADMIN']);
     $company = Company::factory()->create();
     $branch = Branch::factory()->for($company)->create();
@@ -165,7 +165,8 @@ test('a thousand payroll rows import and produce paginated full-period totals', 
     expect($batch->fresh()->status)->toBe('Completed');
     expect(PayrollEntry::count())->toBe(1000);
     expect((int) PayrollEntry::sum('tax'))->toBe(200000000);
-    $this->actingAs($user)->get(route('payroll.index', ['company' => $company, 'branch_id' => $branch->id, 'year' => 2026, 'month' => 11, 'per_page' => 25]))->assertOk()->assertSee('10.000.000.000')->assertViewHas('entries', fn ($entries) => $entries->count() === 25);
+    $this->actingAs($user)->get(route('payroll.index', ['company' => $company, 'branch_id' => $branch->id, 'year' => 2026, 'month' => 11, 'per_page' => 25]))->assertOk()
+        ->assertViewHas('bootstrap', fn (array $state): bool => count($state['employees']) === 1000 && array_sum(array_column($state['employees'], 'gajiPokok')) === 10000000000);
 });
 test('exports use finalized identity snapshots and the official monthly XML structure', function (): void {
     $user = User::factory()->create(['role' => 'SUPER_ADMIN']);

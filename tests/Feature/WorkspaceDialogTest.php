@@ -22,7 +22,8 @@ test('payroll dialogs use compact authorized pages and same origin framing', fun
         ->assertSee('name="new_employee"', false)
         ->assertHeader('X-Frame-Options', 'SAMEORIGIN');
     $this->get(route('payroll.index', $company))->assertOk()
-        ->assertSee('data-workspace-dialog', false)->assertSee('data-shadcn="workspace-dialog"', false);
+        ->assertSee('id="manualEmployeeModal"', false)->assertSee('id="worksheetViewModal"', false)
+        ->assertDontSee('data-shadcn="workspace-dialog"', false);
 });
 
 test('saving a new recipient in a dialog retains compact result and server calculation', function (): void {
@@ -98,7 +99,7 @@ test('delegated account management does not grant access to administrator audit 
         ->assertDontSee('Audit akun')->assertViewHas('events', fn ($events): bool => $events->isEmpty());
 });
 
-test('payroll footer totals include every matching row beyond the current page', function (): void {
+test('payroll provides every row to calculate footer totals beyond the current page', function (): void {
     $admin = User::factory()->create(['role' => 'SUPER_ADMIN']);
     $company = Company::factory()->create();
     $branch = Branch::factory()->for($company)->create();
@@ -106,7 +107,6 @@ test('payroll footer totals include every matching row beyond the current page',
     PayrollEntry::factory()->count(26)->for($run)->create();
 
     $this->actingAs($admin)->get(route('payroll.index', ['company' => $company, 'branch_id' => $branch->id, 'module' => 'monthly', 'year' => 2026, 'month' => 11, 'per_page' => 25]))
-        ->assertOk()->assertViewHas('entries', fn ($entries): bool => $entries->count() === 25)
-        ->assertViewHas('tableTotals', fn (array $totals): bool => $totals['salary'] === 260000000 && $totals['tax'] === 5200000)
-        ->assertSee('Tarif / DPP')->assertSee('TOTAL 26 PENERIMA');
+        ->assertOk()->assertViewHas('bootstrap', fn (array $state): bool => count($state['employees']) === 26 && array_sum(array_column($state['employees'], 'gajiPokok')) === 260000000)
+        ->assertSee('Tarif / DPP')->assertSee('id="employeeTableFoot"', false);
 });

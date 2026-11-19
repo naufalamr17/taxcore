@@ -28,7 +28,8 @@ test('payroll draft review finalize correction and snapshot lifecycle', function
     $run = $entry->payrollRun;
     expect($entry->tax)->toBe(200000);
     $this->get(route('payroll.show', [$company, $entry]))->assertOk()->assertSee($employee->name);
-    $this->get(route('payroll.index', ['company' => $company, 'year' => 2026, 'month' => 11, 'branch_id' => $branch->id]))->assertOk()->assertSee('10.000.000');
+    $this->get(route('payroll.index', ['company' => $company, 'year' => 2026, 'month' => 11, 'branch_id' => $branch->id]))->assertOk()
+        ->assertViewHas('bootstrap', fn (array $state): bool => $state['employees'][0]['gajiPokok'] === 10000000);
     $this->post(route('payroll.transition', [$company, $run]), ['action' => 'review'])->assertRedirect();
     $this->post(route('payroll.transition', [$company, $run]), ['action' => 'finalize'])->assertRedirect();
     expect($run->fresh()->status)->toBe('Finalized');
@@ -110,6 +111,6 @@ test('all workspace pages render with escaped names', function (): void {
     $branch = Branch::factory()->for($company)->create();
     Employee::factory()->for($company)->create();
     foreach (['companies.index' => [], 'access.index' => [], 'employees.index' => [$company], 'imports.index' => [$company], 'simulator.index' => [$company], 'tax.reference' => [], 'audit.index' => [$company], 'payroll.create' => [$company]] as $route => $parameters) {
-        $this->actingAs($user)->get(route($route,$parameters))->assertOk()->assertDontSee('<script>alert(1)</script>',false);
+        $this->actingAs($user)->get(route($route, $parameters))->assertOk()->assertDontSee('<script>alert(1)</script>', false);
     }
 });

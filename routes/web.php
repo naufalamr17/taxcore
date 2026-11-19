@@ -5,6 +5,7 @@ use App\Http\Controllers\AuthController;
 use App\Http\Controllers\CompanyController;
 use App\Http\Controllers\EmployeeController;
 use App\Http\Controllers\ExportController;
+use App\Http\Controllers\HtmlWorkspaceController;
 use App\Http\Controllers\ImportController;
 use App\Http\Controllers\PayrollController;
 use App\Http\Controllers\ProfileController;
@@ -21,12 +22,17 @@ Route::middleware('guest')->group(function (): void {
     Route::post('/setup', [AuthController::class, 'initialize'])->middleware('throttle:login')->name('setup.store');
 });
 Route::middleware(['auth', EnsureActiveUser::class])->group(function (): void {
-    Route::get('/dashboard', [WorkspaceController::class, 'dashboard'])->name('dashboard');
+    Route::get('/dashboard', [HtmlWorkspaceController::class, 'index'])->name('dashboard');
+    Route::get('/workspace/state', [HtmlWorkspaceController::class, 'state'])->name('workspace.state');
+    Route::post('/workspace/companies', [HtmlWorkspaceController::class, 'saveCompany'])->name('workspace.companies.save');
+    Route::delete('/workspace/companies/{branch}', [HtmlWorkspaceController::class, 'deleteCompany'])->name('workspace.companies.destroy');
+    Route::post('/companies/{company}/branches/{branch}/workspace', [HtmlWorkspaceController::class, 'saveEmployees'])->name('workspace.employees');
+    Route::post('/companies/{company}/branches/{branch}/workspace/export', [HtmlWorkspaceController::class, 'recordExport'])->name('workspace.export');
     Route::post('/logout', [AuthController::class, 'logout'])->name('logout');
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
     Route::put('/profile', [ProfileController::class, 'update'])->name('profile.update');
     Route::put('/profile/password', [ProfileController::class, 'password'])->middleware('throttle:6,1')->name('profile.password');
-    Route::get('/companies', [CompanyController::class, 'index'])->name('companies.index');
+    Route::get('/companies', [HtmlWorkspaceController::class, 'index'])->name('companies.index');
     Route::post('/companies', [CompanyController::class, 'store'])->name('companies.store');
     Route::delete('/companies/{company}', [CompanyController::class, 'destroy'])->name('companies.destroy');
     Route::put('/companies/{company}', [CompanyController::class, 'update'])->name('companies.update');
@@ -39,7 +45,7 @@ Route::middleware(['auth', EnsureActiveUser::class])->group(function (): void {
     Route::put('/access/users/{user}', [AccessController::class, 'update'])->name('access.update');
     Route::put('/access/permissions', [AccessController::class, 'permissions'])->name('access.permissions');
     Route::prefix('/companies/{company}')->group(function (): void {
-        Route::get('/payroll', [WorkspaceController::class, 'index'])->name('payroll.index');
+        Route::get('/payroll', [HtmlWorkspaceController::class, 'index'])->name('payroll.index');
         Route::get('/employees', [EmployeeController::class, 'index'])->name('employees.index');
         Route::get('/employees/lookup', [EmployeeController::class, 'lookup'])->name('employees.lookup');
         Route::post('/employees', [EmployeeController::class, 'store'])->name('employees.store');
@@ -52,7 +58,7 @@ Route::middleware(['auth', EnsureActiveUser::class])->group(function (): void {
         Route::put('/payroll/{entry}', [PayrollController::class, 'update'])->name('payroll.update');
         Route::delete('/payroll/{entry}', [PayrollController::class, 'destroy'])->name('payroll.destroy');
         Route::post('/payroll-runs/{run}/status', [PayrollController::class, 'transition'])->name('payroll.transition');
-        Route::get('/simulator', [SimulatorController::class, 'index'])->name('simulator.index');
+        Route::get('/simulator', [HtmlWorkspaceController::class, 'index'])->name('simulator.index');
         Route::post('/simulator', [SimulatorController::class, 'calculate'])->middleware('throttle:60,1')->name('simulator.calculate');
         Route::get('/imports', [ImportController::class, 'index'])->name('imports.index');
         Route::get('/imports/template', [ImportController::class, 'template'])->name('imports.template');
